@@ -1,0 +1,731 @@
+<!--
+  GasAR · PANEL DE ADMINISTRACIÓN
+  Versión: 1.3.0-etapa4
+  Fecha: 2026-10-02
+  Changelog:
+   - 1.3.0-etapa4: COMPRAS (proveedor, líneas con marca, canje de vacíos, pago mixto, comprobante; suman stock a la central
+     y descuentan la caja), PROVEEDORES (cuenta corriente: lo que se les debe, pagos), GASTOS (de cualquier punto, con anulación),
+     dinero real por caja abierta en el Resumen, movimientos de caja, exportación a CSV (ventas, stock, compras, gastos,
+     cuentas corrientes, movimientos).
+   - 1.2.0-etapa3: revendedores y cuentas corrientes.   - 1.1.0-etapa2: cargas y rendiciones.   - 1.0.0-etapa1: núcleo.
+  PENDIENTE:
+   - Etapa 6: ARCA (facturación electrónica)
+   - Precios especiales por revendedor
+   - Límites por plan (limiteCamionetas / limiteUsuarios) hoy solo se controlan en pantalla, falta reforzarlos en reglas
+   - Completar FB (config de Firebase) antes de desplegar
+-->
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A57C8">
+<title>GasAR · Administración</title>
+<link rel="manifest" href="manifest-gasar-admin.webmanifest">
+<link rel="icon" href="icon-gasar-192.png">
+<link rel="apple-touch-icon" href="icon-gasar-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E8ECF0;--card:#fff;--ink:#101A24;--mut:#55677A;--line:#C9D2DB;--pri:#0A57C8;--pri-ink:#fff;--ok:#0E8A4F;--warn:#B8470C;--bad:#B42318;--chip:#DCE4EC;--r:12px}
+[data-theme=dark]{--bg:#0D141B;--card:#152029;--ink:#E8EEF3;--mut:#8FA2B3;--line:#263544;--pri:#4C9BFF;--pri-ink:#06121F;--ok:#3DD68C;--warn:#FF9A5C;--bad:#FF6B5E;--chip:#1D2B38}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Barlow',system-ui,sans-serif;font-size:16px}
+h1,h2,h3,.num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;margin:0}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+#splash{position:fixed;inset:0;background:var(--pri);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;z-index:99;transition:opacity .4s}
+#splash.off{opacity:0;pointer-events:none}
+.gar{width:54px;height:92px;border:4px solid #fff;border-radius:16px;position:relative;overflow:hidden}
+.gar:before{content:"";position:absolute;left:0;right:0;bottom:0;background:#fff;animation:fill 1.6s ease-in-out infinite alternate}
+@keyframes fill{from{height:12%}to{height:88%}}
+@media (prefers-reduced-motion:reduce){.gar:before{animation:none;height:60%}*{transition:none!important}}
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 8px) 14px 0}
+.top{display:flex;align-items:center;gap:10px;padding-bottom:8px}
+.logo{font-family:'Barlow Semi Condensed';font-weight:700;font-size:22px;color:var(--pri);user-select:none}
+.who{flex:1;min-width:0;font-size:14px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ico,.btn{border:1px solid var(--line);background:var(--chip);border-radius:10px;min-height:40px;padding:6px 14px;font-weight:600}
+.btn.pri{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
+.btn.bad{color:var(--bad)}.btn.sm{min-height:32px;padding:2px 10px;font-size:14px}
+.btn:disabled{opacity:.5}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:0 14px}
+nav button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap;min-height:44px}
+nav button.on{color:var(--pri);border-bottom-color:var(--pri)}
+main{padding:14px 14px 60px;max-width:1100px;margin:0 auto}
+.grid{display:grid;gap:12px}.cards{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.card h2{font-size:20px;margin-bottom:8px}
+.kpi .num{font-size:36px;display:block}
+.mut{color:var(--mut)}.bad{color:var(--bad)}.warn{color:var(--warn)}.okc{color:var(--ok)}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-weight:600}td.r,th.r{text-align:right}
+.alert{border-left:4px solid var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);padding:8px 12px;border-radius:8px;margin-bottom:8px}
+.alert.b{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+label{display:block;font-size:14px;color:var(--mut);font-weight:600;margin-bottom:4px}
+input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:6px 10px}
+.tag{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--chip)}.tag.bad{color:var(--bad)}.tag.w{color:var(--warn)}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:99px;font-weight:600;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast.on{opacity:1}#toast.err{background:var(--bad);color:#fff}
+.login{max-width:380px;margin:12vh auto 0;padding:0 14px}
+</style>
+</head>
+<body>
+<div id="splash"><div class="gar"></div><h1>GasAR</h1></div>
+<div id="toast"></div>
+<div id="root"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+'use strict';
+const VERSION='1.3.0-etapa4';
+const FB={apiKey:'COMPLETAR',authDomain:'COMPLETAR',projectId:'COMPLETAR',storageBucket:'',messagingSenderId:'',appId:''};
+const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='2580';
+
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$ '+Math.round(Number(n)||0).toLocaleString('es-AR');
+const pad=n=>String(n).padStart(2,'0');
+const hoy=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const fh=t=>{if(!t)return'';const d=t.toDate?t.toDate():new Date(t);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes())};
+const tms=t=>t&&t.toMillis?t.toMillis():(t?+new Date(t):0);
+const nid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,12));
+const LS={get(k,d){try{const v=localStorage.getItem('gasar_a_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('gasar_a_'+k,JSON.stringify(v))}catch(e){}}};
+let toastT;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='',2800)}
+const SIN='_sin';
+const ROLES={administrador:'Administrador',administracion:'Administración',vendedor_central:'Vendedor central',vendedor_revendedores:'Vendedor revendedores',vendedor_camioneta:'Vendedor camioneta'};
+const TIPOS={central:'Central',camioneta:'Camioneta',revendedores:'Revendedores'};
+
+const S={user:null,perfil:null,tid:null,raven:false,tenant:null,tab:LS.get('tab','resumen'),fecha:hoy(),
+  productos:[],marcas:[],ubis:[],saldos:[],turnos:[],cierres:[],ventas:[],usuarios:[],movs:[],audit:[],tenants:[],hist:'stock',cargas:[],rends:[],cgA:{items:[]},provs:[],provSaldos:{},provMov:[],compras:[],gastos:[],movCaja:[],cpA:{items:[],h:{}},provSel:null,revs:[],ctaSaldos:{},ctaEnvAll:[],ctaMov:[],revSel:null,unsub:[],online:navigator.onLine};
+
+if(FB.apiKey==='COMPLETAR'){
+  $('#splash').classList.add('off');
+  $('#root').innerHTML='<main><div class="card"><h2>Falta la configuración</h2><p>Completá el bloque <b>FB</b> con los datos de tu proyecto de Firebase y volvé a subir el archivo.</p></div></main>';
+  throw new Error('Firebase sin configurar');
+}
+firebase.initializeApp(FB);
+const auth=firebase.auth(),db=firebase.firestore();
+const FV=firebase.firestore.FieldValue,TS=firebase.firestore.Timestamp;
+db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistencia',e.code));
+const T=()=>db.collection('tenants').doc(S.tid);
+const sk=(u,p,m,t)=>[u,p,m,t].join('__');
+const soyRaven=u=>u&&u.email===RAVEN_EMAIL&&u.emailVerified;
+
+function cleanup(){S.unsub.forEach(f=>{try{f()}catch(e){}});S.unsub=[]}
+auth.onAuthStateChanged(async u=>{
+  cleanup();S.user=u;S.perfil=null;S.tid=null;S.raven=false;
+  if(!u){hideSplash();return render()}
+  try{
+    const ref=db.collection('usuarios').doc(u.uid);
+    let snap=null;try{snap=await ref.get({source:'cache'})}catch(e){}
+    if(!snap||!snap.exists)snap=await ref.get().catch(()=>null);
+    if(snap&&snap.exists){
+      const p=snap.data();
+      if(p.activo!==true||!['administrador','administracion'].includes(p.rol)){await auth.signOut();hideSplash();return toast('Este usuario no tiene acceso al panel.',true)}
+      S.perfil=p;S.tid=p.tenantId;listen();
+    }else if(soyRaven(u)){
+      S.raven=true;S.perfil={nombre:'Raven',rol:'administrador'};loadTenants();
+    }else{await auth.signOut();hideSplash();return toast('Tu usuario no está habilitado.',true)}
+  }catch(e){console.error(e);await auth.signOut().catch(()=>{});toast('No se pudo iniciar sesión ('+(e.code||'error')+')',true)}
+  hideSplash();blur();render();
+});
+function blur(){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()}
+function hideSplash(){$('#splash').classList.add('off')}
+
+function loadTenants(){S.unsub.push(db.collection('tenants').onSnapshot(s=>{S.tenants=s.docs.map(d=>({id:d.id,...d.data()}));render()}))}
+function entrarTenant(id){cleanup();S.tid=id;S.tab='resumen';listen();loadTenants();render()}
+function salirTenant(){cleanup();S.tid=null;S.tenant=null;loadTenants();render()}
+
+function listen(){
+  const t=T(),mk=(q,k,f)=>S.unsub.push(q.onSnapshot(s=>{S[k]=s.docs.map(d=>({id:d.id,...d.data()}));if(f)f();render()},e=>console.warn(k,e.code)));
+  S.unsub.push(t.onSnapshot(s=>{S.tenant=s.exists?s.data():null;render()}));
+  mk(t.collection('productos'),'productos',()=>S.productos.sort((a,b)=>(a.orden||a.kg||0)-(b.orden||b.kg||0)));
+  mk(t.collection('marcas'),'marcas',()=>S.marcas.sort((a,b)=>a.nombre.localeCompare(b.nombre)));
+  mk(t.collection('ubicaciones'),'ubis');
+  mk(t.collection('saldosStock'),'saldos');
+  mk(t.collection('turnosCaja').where('estado','==','abierta'),'turnos');
+  mk(t.collection('turnosCaja').orderBy('abiertaTs','desc').limit(30),'cierres');
+  mk(db.collection('usuarios').where('tenantId','==',S.tid),'usuarios');
+  mk(t.collection('movimientosStock').orderBy('ts','desc').limit(100),'movs');
+  mk(t.collection('auditoria').orderBy('ts','desc').limit(100),'audit');
+  mk(t.collection('cargas').orderBy('ts','desc').limit(50),'cargas');
+  mk(t.collection('rendiciones').orderBy('ts','desc').limit(50),'rends');
+  mk(t.collection('revendedores'),'revs',()=>S.revs.sort((a,b)=>a.nombre.localeCompare(b.nombre)));
+  mk(t.collection('ctaCte').orderBy('ts','desc').limit(500),'ctaMov');
+  S.unsub.push(t.collection('ctaSaldos').onSnapshot(s=>{const m={};s.docs.forEach(d=>m[d.id]=d.data().saldo||0);S.ctaSaldos=m;render()},e=>console.warn('ctaSaldos',e.code)));
+  S.unsub.push(t.collection('ctaEnvases').onSnapshot(s=>{S.ctaEnvAll=s.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.cantidad);render()},e=>console.warn('ctaEnvases',e.code)));
+  mk(t.collection('proveedores'),'provs',()=>S.provs.sort((a,b)=>a.nombre.localeCompare(b.nombre)));
+  mk(t.collection('provCte').orderBy('ts','desc').limit(300),'provMov');
+  mk(t.collection('compras').orderBy('ts','desc').limit(100),'compras');
+  mk(t.collection('gastos').orderBy('ts','desc').limit(100),'gastos');
+  mk(t.collection('movimientosCaja').orderBy('ts','desc').limit(500),'movCaja');
+  S.unsub.push(t.collection('provSaldos').onSnapshot(s=>{const m={};s.docs.forEach(d=>m[d.id]=d.data().saldo||0);S.provSaldos=m;render()},e=>console.warn('provSaldos',e.code)));
+  subVentas();
+}
+let unV=null;
+function subVentas(){
+  if(unV){unV();unV=null}
+  unV=T().collection('ventas').where('dia','==',S.fecha).onSnapshot(s=>{S.ventas=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>tms(b.ts)-tms(a.ts));render()},e=>console.warn('ventas',e.code));
+  S.unsub.push(()=>{if(unV){unV();unV=null}});
+}
+
+/* ---------- helpers ---------- */
+const prodN=id=>(S.productos.find(p=>p.id===id)||{}).nombre||'Producto';
+const marcaN=id=>id===SIN?'Sin marca':((S.marcas.find(m=>m.id===id)||{}).nombre||'Marca');
+const ubiN=id=>(S.ubis.find(u=>u.id===id)||{}).nombre||'Punto';
+const central=()=>S.ubis.find(u=>u.tipo==='central');
+const okVentas=()=>S.ventas.filter(v=>v.estado==='ok');
+const audit=(b,accion,detalle)=>b.set(T().collection('auditoria').doc(nid()),{accion,detalle,uid:S.user.uid,usuario:S.perfil.nombre,ts:TS.now()});
+function ajusteStock(b,ubi,pid,mid,tipo,cant,motivo,extra){
+  b.set(T().collection('movimientosStock').doc(nid()),{ubicacionId:ubi,tipo,productoId:pid,marcaId:mid,cantidad:cant,motivo,uid:S.user.uid,usuario:S.perfil.nombre,ts:TS.now(),dia:hoy(),...(extra||{})});
+  b.set(T().collection('saldosStock').doc(sk(ubi,pid,mid,tipo)),{ubicacionId:ubi,productoId:pid,marcaId:mid,tipo,cantidad:FV.increment(cant)},{merge:true});
+}
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
+const num=id=>{const v=parseFloat(val(id));return isNaN(v)?null:v};
+const commit=(b,ok,msg)=>b.commit().then(()=>ok&&toast(ok)).catch(e=>{console.error(e);toast((msg||'No se pudo guardar')+' ('+(e.code||'error')+')',true)});
+
+/* ---------- acciones ---------- */
+async function login(){
+  const e=val('em'),p=document.getElementById('pw').value;if(!e||!p)return toast('Poné mail y clave',true);
+  $('#splash').classList.remove('off');
+  try{await auth.signInWithEmailAndPassword(e,p)}catch(x){hideSplash();toast('Mail o clave incorrectos',true)}
+}
+async function loginGoogle(){try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){toast('No se pudo ingresar con Google',true)}}
+
+function guardarProducto(id){
+  const b=db.batch(),r=T().collection('productos').doc(id);
+  const d={precio:num('pr_'+id)??0,precioRevendedor:num('prv_'+id)??0,precioEnvase:num('pe_'+id)??0,stockMinimo:num('sm_'+id)??0};
+  b.update(r,d);audit(b,'editar_producto',prodN(id)+' precio '+d.precio+' envase '+d.precioEnvase+' mín '+d.stockMinimo);commit(b,'Producto guardado');
+}
+function toggleProducto(id,act){const b=db.batch();b.update(T().collection('productos').doc(id),{activo:act});audit(b,act?'activar_producto':'desactivar_producto',prodN(id));commit(b,act?'Producto activado':'Producto desactivado')}
+function nuevoProducto(){
+  const n=val('np_n'),kg=num('np_kg');if(!n||!kg)return toast('Poné nombre y kilos',true);
+  const id=nid(),b=db.batch();
+  b.set(T().collection('productos').doc(id),{nombre:n,kg,precio:num('np_p')??0,precioRevendedor:num('np_r')??0,precioEnvase:num('np_e')??0,stockMinimo:num('np_m')??0,activo:true,orden:kg});
+  audit(b,'crear_producto',n);commit(b,'Producto creado');
+}
+function nuevaMarca(){
+  const n=val('nm_n');if(!n)return toast('Poné el nombre de la marca',true);
+  if(S.marcas.some(m=>m.nombre.toLowerCase()===n.toLowerCase()))return toast('Esa marca ya existe',true);
+  const b=db.batch();b.set(T().collection('marcas').doc(nid()),{nombre:n,activa:true});audit(b,'crear_marca',n);commit(b,'Marca creada');
+}
+function toggleMarca(id,act){const b=db.batch();b.update(T().collection('marcas').doc(id),{activa:act});audit(b,'marca_'+(act?'activar':'desactivar'),marcaN(id));commit(b,'Listo')}
+function nuevaUbi(){
+  const n=val('nu_n'),tp=val('nu_t');if(!n)return toast('Poné un nombre',true);
+  if(tp==='central'&&central())return toast('Ya existe un punto central',true);
+  if(tp==='camioneta'){const lim=(S.tenant||{}).limiteCamionetas;if(lim!=null&&S.ubis.filter(u=>u.tipo==='camioneta'&&u.activa!==false).length>=lim)return toast('Llegaste al límite de camionetas de tu plan ('+lim+')',true)}
+  const b=db.batch();b.set(T().collection('ubicaciones').doc(nid()),{nombre:n,tipo:tp,activa:true,creadaTs:TS.now()});audit(b,'crear_punto',n+' ('+tp+')');commit(b,'Punto creado');
+}
+function toggleUbi(id,act){const b=db.batch();b.update(T().collection('ubicaciones').doc(id),{activa:act});audit(b,'punto_'+(act?'activar':'desactivar'),ubiN(id));commit(b,'Listo')}
+function secApp(){return firebase.apps.find(a=>a.name==='sec')||firebase.initializeApp(FB,'sec')}
+async function crearUsuarioAuth(email,pass,datos){
+  const sec=secApp();
+  const cred=await sec.auth().createUserWithEmailAndPassword(email,pass);
+  try{await db.collection('usuarios').doc(cred.user.uid).set({...datos,email,activo:true,creadoTs:TS.now()})}
+  finally{await sec.auth().signOut()}
+  return cred.user.uid;
+}
+async function nuevoUsuario(){
+  const email=val('nus_e'),pass=document.getElementById('nus_p').value,nombre=val('nus_n'),rol=val('nus_r'),ubi=val('nus_u');
+  if(!email||!nombre||pass.length<6)return toast('Completá mail, nombre y una clave de 6+ caracteres',true);
+  if(rol.startsWith('vendedor')&&!ubi)return toast('Elegí el punto de venta del vendedor',true);
+  const lim=(S.tenant||{}).limiteUsuarios;if(lim!=null&&S.usuarios.filter(u=>u.activo).length>=lim)return toast('Llegaste al límite de usuarios de tu plan ('+lim+')',true);
+  try{
+    await crearUsuarioAuth(email,pass,{tenantId:S.tid,nombre,rol,ubicacionId:rol.startsWith('vendedor')?ubi:null});
+    const b=db.batch();audit(b,'crear_usuario',nombre+' · '+rol);await b.commit();toast('Usuario creado');
+  }catch(e){toast(e.code==='auth/email-already-in-use'?'Ese mail ya está registrado':'No se pudo crear ('+(e.code||'error')+')',true)}
+}
+function toggleUsuario(id,act){
+  if(id===S.user.uid)return toast('No podés desactivarte a vos mismo',true);
+  const b=db.batch();b.update(db.collection('usuarios').doc(id),{activo:act});audit(b,act?'activar_usuario':'desactivar_usuario',id);commit(b,'Listo');
+}
+function guardarAjuste(){
+  const ubi=val('aj_u'),pid=val('aj_p'),mid=val('aj_m'),tp=val('aj_t'),sg=val('aj_s'),c=num('aj_c'),mo=val('aj_mo'),nota=val('aj_n');
+  if(!ubi||!pid||!c||c<=0)return toast('Completá punto, producto y cantidad',true);
+  if(mo==='otro'&&!nota)return toast('Si el motivo es "otro", escribí una nota',true);
+  const q=(sg==='sale'?-1:1)*Math.round(c);
+  if(!confirm('Vas a '+(q>0?'sumar ':'restar ')+Math.abs(q)+' '+(tp==='lleno'?'llenas':'vacías')+' de '+prodN(pid)+' '+marcaN(mid)+' en '+ubiN(ubi)+'.\nMotivo: '+mo+'\n\n¿Confirmar?'))return;
+  const b=db.batch();ajusteStock(b,ubi,pid,mid,tp,q,'ajuste:'+mo,{nota,refTipo:'ajuste'});audit(b,'ajuste_stock',ubiN(ubi)+' '+prodN(pid)+' '+marcaN(mid)+' '+tp+' '+q+' ('+mo+')');
+  commit(b,'Ajuste registrado');
+}
+function anular(id){
+  const v=S.ventas.find(x=>x.id===id);if(!v||v.estado!=='ok')return;
+  const mo=prompt('Motivo de la anulación (obligatorio):');if(!mo||!mo.trim())return toast('Falta el motivo',true);
+  if(!confirm('Se anula la venta de '+money(v.total)+' y se revierten stock y caja. ¿Confirmar?'))return;
+  const b=db.batch();
+  b.update(T().collection('ventas').doc(id),{estado:'anulada',anuladaPor:S.perfil.nombre,anuladaTs:TS.now(),anulacionMotivo:mo.trim()});
+  v.items.forEach(i=>{
+    ajusteStock(b,v.ubicacionId,i.productoId,i.marcaId,'lleno',i.cant,'anulacion',{refTipo:'venta',refId:id,anulaVenta:id});
+    if(i.vacios)ajusteStock(b,v.ubicacionId,i.productoId,i.marcaVacioId,'vacio',-i.vacios,'anulacion',{refTipo:'venta',refId:id,anulaVenta:id});
+  });
+  const imp=v.tipo==='revendedor'?(v.pagado||0):v.total;
+  if(imp)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:v.turnoId,ubicacionId:v.ubicacionId,tipo:'anulacion',medio:v.medio==='cuenta'?'efectivo':v.medio,importe:-imp,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts:TS.now(),dia:hoy()});
+  if(v.tipo==='revendedor'){
+    b.set(T().collection('ctaCte').doc(nid()),{revendedorId:v.revendedorId,tipo:'anulacion',importe:-(v.aCuenta||0),ventaId:id,ubicacionId:v.ubicacionId,uid:S.user.uid,usuario:S.perfil.nombre,ts:TS.now(),dia:hoy(),envases:(v.envasesAdeudados||[]).map(e=>({productoId:e.productoId,marcaId:e.marcaId,cant:-e.cant}))});
+    if(v.aCuenta)b.set(T().collection('ctaSaldos').doc(v.revendedorId),{revendedorId:v.revendedorId,saldo:FV.increment(-v.aCuenta)},{merge:true});
+    (v.envasesAdeudados||[]).forEach(e=>b.set(T().collection('ctaEnvases').doc([v.revendedorId,e.productoId,e.marcaId].join('__')),{revendedorId:v.revendedorId,productoId:e.productoId,marcaId:e.marcaId,cantidad:FV.increment(-e.cant)},{merge:true}));
+  }
+  audit(b,'anular_venta',id.slice(0,4).toUpperCase()+' '+money(v.total)+' · '+mo.trim());commit(b,'Venta anulada');
+}
+async function crearDistribuidora(){
+  const n=val('dn_n'),e=val('dn_e'),p=document.getElementById('dn_p').value,an=val('dn_a');
+  if(!n||!e||!an||p.length<6)return toast('Completá todo (clave de 6+ caracteres)',true);
+  const tid=db.collection('tenants').doc().id,b=db.batch(),t=db.collection('tenants').doc(tid);
+  b.set(t,{nombre:n,plan:'demo',limiteCamionetas:3,limiteUsuarios:10,creadoTs:TS.now()});
+  [[10,'Garrafa 10 kg'],[15,'Garrafa 15 kg'],[40,'Garrafa 40 kg']].forEach(([kg,nom])=>b.set(t.collection('productos').doc(nid()),{nombre:nom,kg,precio:0,precioEnvase:0,stockMinimo:0,activo:true,orden:kg}));
+  b.set(t.collection('ubicaciones').doc(nid()),{nombre:'Central',tipo:'central',activa:true,creadaTs:TS.now()});
+  try{await b.commit();await crearUsuarioAuth(e,p,{tenantId:tid,nombre:an,rol:'administrador',ubicacionId:null});toast('Distribuidora creada');entrarTenant(tid)}
+  catch(x){console.error(x);toast('No se pudo crear ('+(x.code||'error')+')',true)}
+}
+
+/* ---------- Etapa 2: cargas y rendiciones ---------- */
+function cgAgregar(){
+  const pid=val('cg_p'),mid=val('cg_m'),c=Math.round(num('cg_c')||0);
+  if(!pid||c<=0)return toast('Elegí producto y cantidad',true);
+  const p=S.productos.find(x=>x.id===pid)||{};
+  const ex=S.cgA.items.find(i=>i.productoId===pid&&i.marcaId===mid);
+  if(ex)ex.cant+=c;else S.cgA.items.push({productoId:pid,nombre:p.nombre,kg:p.kg,marcaId:mid,marcaNombre:marcaN(mid),cant:c});
+  S.cgA.dest=val('cg_d');blur();render();
+}
+function cgQuitar(i){S.cgA.items.splice(i,1);render()}
+function cgCrear(){
+  const dest=val('cg_d')||S.cgA.dest,c=central();
+  if(!c)return toast('Primero creá el punto Central',true);
+  if(!dest)return toast('Elegí la camioneta',true);
+  if(!S.cgA.items.length)return toast('Agregá al menos una línea',true);
+  const id=nid(),b=db.batch(),ts=TS.now();
+  b.set(T().collection('cargas').doc(id),{origenId:c.id,origenNombre:c.nombre,destinoId:dest,destinoNombre:ubiN(dest),items:S.cgA.items,estado:'en_transito',uid:S.user.uid,usuario:S.perfil.nombre,ts,dia:hoy(),appVersion:VERSION});
+  S.cgA.items.forEach(i=>ajusteStock(b,c.id,i.productoId,i.marcaId,'lleno',-i.cant,'carga',{refTipo:'carga',refId:id}));
+  audit(b,'cargar_camioneta',ubiN(dest)+': '+S.cgA.items.map(i=>i.cant+'×'+i.kg+'kg '+i.marcaNombre).join(', '));
+  S.cgA={items:[]};commit(b,'Carga enviada: queda en tránsito hasta que el chofer la confirme');
+}
+function cgCancelar(id){
+  const c=S.cargas.find(x=>x.id===id);if(!c||c.estado!=='en_transito')return;
+  if(!confirm('Se cancela la carga y las garrafas vuelven al stock de la central. ¿Confirmar?'))return;
+  const b=db.batch();
+  b.update(T().collection('cargas').doc(id),{estado:'anulada',anuladaPor:S.perfil.nombre,anuladaTs:TS.now()});
+  c.items.forEach(i=>ajusteStock(b,c.origenId,i.productoId,i.marcaId,'lleno',i.cant,'anulacion_carga',{refTipo:'carga',refId:id}));
+  audit(b,'anular_carga',c.destinoNombre+' '+id.slice(0,4).toUpperCase());commit(b,'Carga cancelada');
+}
+function aprobarRendicion(id){
+  const r=S.rends.find(x=>x.id===id);if(!r||r.estado!=='pendiente')return;
+  const c=central();if(!c)return toast('No hay punto Central',true);
+  const nd=r.lineas.filter(l=>l.dif).length,dE=r.efectivo.dif;
+  if(!confirm('Aprobar la rendición de '+r.ubicacionNombre+'?\n\nSe devuelve a la central lo que contó el chofer'+(nd?' y se registran '+nd+' diferencia(s) de stock':'')+'.\nEfectivo declarado: '+money(r.efectivo.declarado)+' (diferencia '+money(dE)+')'))return;
+  const b=db.batch(),ts=TS.now();
+  r.lineas.forEach(l=>{
+    if(l.declarado>0){
+      ajusteStock(b,r.ubicacionId,l.productoId,l.marcaId,l.tipo,-l.declarado,'rendicion',{refTipo:'rendicion',refId:id});
+      ajusteStock(b,c.id,l.productoId,l.marcaId,l.tipo,l.declarado,'rendicion',{refTipo:'rendicion',refId:id});
+    }
+    if(l.dif)ajusteStock(b,r.ubicacionId,l.productoId,l.marcaId,l.tipo,l.dif,'diferencia_rendicion',{refTipo:'rendicion',refId:id});
+  });
+  const tc=S.turnos.find(t=>t.ubicacionId===c.id);
+  if(tc&&r.efectivo.declarado)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:tc.id,ubicacionId:c.id,tipo:'rendicion',medio:'efectivo',importe:r.efectivo.declarado,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia:hoy()});
+  b.update(T().collection('rendiciones').doc(id),{estado:'aprobada',aprobadaPor:S.perfil.nombre,aprobadaTs:ts,efectivoEnCajaCentral:!!tc});
+  audit(b,'aprobar_rendicion',r.ubicacionNombre+' · dif efectivo '+dE+' · '+nd+' dif. de stock');
+  commit(b,tc?'Rendición aprobada. Stock devuelto y efectivo sumado a la caja central':'Rendición aprobada. No había caja central abierta: el efectivo NO se sumó a ninguna caja');
+}
+
+/* ---------- Etapa 3: revendedores ---------- */
+const revN=id=>(S.revs.find(r=>r.id===id)||{}).nombre||'Revendedor';
+function deudaInfo(id){
+  const saldo=S.ctaSaldos[id]||0;let rest=saldo,venc=0,prox=null;
+  if(rest<=0)return{saldo,venc:0,prox:null};
+  const anul=new Set(S.ctaMov.filter(m=>m.tipo==='anulacion').map(m=>m.ventaId));
+  const cr=S.ctaMov.filter(m=>m.revendedorId===id&&m.tipo==='venta'&&m.importe>0&&!anul.has(m.ventaId)).sort((a,b)=>tms(b.ts)-tms(a.ts));
+  for(const m of cr){if(rest<=0)break;const part=Math.min(rest,m.importe);rest-=part;if(m.vencimiento&&m.vencimiento<hoy())venc+=part;else if(m.vencimiento&&(!prox||m.vencimiento<prox))prox=m.vencimiento}
+  return{saldo,venc,prox};
+}
+const envRev=id=>S.ctaEnvAll.filter(e=>e.revendedorId===id);
+function nuevoRev(){
+  const n=val('nr_n');if(!n)return toast('Poné el nombre del revendedor',true);
+  const b=db.batch();b.set(T().collection('revendedores').doc(nid()),{nombre:n,telefono:val('nr_t'),plazoDias:num('nr_d')??7,limiteCredito:num('nr_l')??0,activo:true,creadoTs:TS.now()});
+  audit(b,'crear_revendedor',n);commit(b,'Revendedor creado');
+}
+function guardarRev(id){
+  const b=db.batch();b.update(T().collection('revendedores').doc(id),{telefono:val('rt_'+id),plazoDias:num('rd_'+id)??7,limiteCredito:num('rl_'+id)??0});
+  audit(b,'editar_revendedor',revN(id)+' límite '+(num('rl_'+id)??0)+' plazo '+(num('rd_'+id)??7));commit(b,'Revendedor guardado');
+}
+function toggleRev(id,act){const b=db.batch();b.update(T().collection('revendedores').doc(id),{activo:act});audit(b,act?'activar_revendedor':'desactivar_revendedor',revN(id));commit(b,'Listo')}
+function revCobrar(id){
+  const m=num('rp_m'),medio=val('rp_t');if(!m||m<=0)return toast('Poné el monto',true);
+  const c=central(),tc=c&&S.turnos.find(t=>t.ubicacionId===c.id);
+  if(!tc&&!confirm('No hay caja central abierta: el pago se anota en la cuenta pero no suma a ninguna caja. ¿Seguir?'))return;
+  const sd=S.ctaSaldos[id]||0;if(m>sd&&!confirm('El pago es mayor que la deuda ('+money(sd)+'); el resto queda a favor del revendedor. ¿Seguir?'))return;
+  const rid=nid(),b=db.batch(),ts=TS.now();
+  b.set(T().collection('ctaCte').doc(rid),{revendedorId:id,tipo:'pago',importe:-m,medio,ubicacionId:c?c.id:null,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia:hoy()});
+  b.set(T().collection('ctaSaldos').doc(id),{revendedorId:id,saldo:FV.increment(-m)},{merge:true});
+  if(tc)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:tc.id,ubicacionId:c.id,tipo:'cobro',medio,importe:m,refId:rid,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia:hoy()});
+  audit(b,'cobro_cta_cte',revN(id)+' '+m+' ('+medio+')');commit(b,'Pago registrado');
+}
+
+/* ---------- Etapa 4: compras, proveedores, gastos, CSV ---------- */
+const provN=id=>(S.provs.find(p=>p.id===id)||{}).nombre||'Proveedor';
+const centralTurno=()=>{const c=central();return c?S.turnos.find(t=>t.ubicacionId===c.id):null};
+function csv(nombre,filas){
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const txt='\ufeff'+filas.map(r=>r.map(q).join(';')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download=nombre+'_'+hoy()+'.csv';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+const fcsv=t=>{if(!t)return'';const d=t.toDate?t.toDate():new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())};
+function exportar(k){
+  const F={
+    ventas:()=>csv('ventas_'+S.fecha,[['Fecha','N°','Punto','Vendedor','Revendedor','Detalle','Medio','Total','Pagado','A cuenta','Estado']].concat(S.ventas.map(v=>[fcsv(v.ts),v.id.slice(0,4).toUpperCase(),v.ubicacionNombre||ubiN(v.ubicacionId),v.usuario,v.revendedorNombre||'',v.items.map(i=>i.cant+'x'+i.kg+'kg '+i.marcaNombre).join(' | '),v.medio,v.total,v.pagado??v.total,v.aCuenta??0,v.estado]))),
+    stock:()=>{const sm=stockMap(),f=[['Punto','Producto','Marca','Llenas','Vacías']];S.ubis.forEach(u=>Object.values(sm[u.id]||{}).forEach(x=>f.push([u.nombre,prodN(x.p),marcaN(x.m),x.ll,x.va])));csv('stock',f)},
+    compras:()=>csv('compras',[['Fecha','Proveedor','Comprobante','Detalle','Medio','Total','Pagado','A cuenta','Estado']].concat(S.compras.map(c=>[c.fecha||fcsv(c.ts),c.proveedorNombre,c.comprobante||'',c.items.map(i=>i.cant+'x'+i.kg+'kg '+i.marcaNombre+' a '+i.precio).join(' | '),c.medio,c.total,c.pagado,c.aProveedor,c.estado]))),
+    gastos:()=>csv('gastos',[['Fecha','Punto','Categoría','Monto','Medio','Nota','Usuario','Estado']].concat(S.gastos.map(g=>[fcsv(g.ts),g.ubicacionNombre||ubiN(g.ubicacionId),g.categoria,g.monto,g.medio,g.nota||'',g.usuario,g.estado]))),
+    revendedores:()=>csv('cuentas_corrientes',[['Revendedor','Teléfono','Debe','Vencido','Próx. vencimiento','Límite','Envases que debe']].concat(S.revs.map(r=>{const d=deudaInfo(r.id);return[r.nombre,r.telefono||'',d.saldo,d.venc,d.prox||'',r.limiteCredito||0,envRev(r.id).map(e=>e.cantidad+'x'+((S.productos.find(p=>p.id===e.productoId)||{}).kg||'')+'kg '+marcaN(e.marcaId)).join(' | ')]}))),
+    proveedores:()=>csv('proveedores',[['Proveedor','Teléfono','Se le debe']].concat(S.provs.map(p=>[p.nombre,p.telefono||'',S.provSaldos[p.id]||0]))),
+    historial:()=>csv('movimientos_stock',[['Fecha','Punto','Producto','Marca','Tipo','Cantidad','Motivo','Usuario']].concat(S.movs.map(m=>[fcsv(m.ts),ubiN(m.ubicacionId),prodN(m.productoId),marcaN(m.marcaId),m.tipo,m.cantidad,m.motivo,m.usuario])))
+  };
+  if(F[k])F[k]();
+}
+function cpLeerCab(){const h={prov:val('cp_prov'),comp:val('cp_comp'),fecha:val('cp_fecha')||hoy(),medio:val('cp_medio')||'efectivo',pag:val('cp_pag'),nota:val('cp_nota')};return h}
+function cpAgregar(){
+  const pid=val('cp_p'),mid=val('cp_m'),c=Math.round(num('cp_c')||0),pr=num('cp_pr'),vac=Math.round(num('cp_v')||0);
+  if(!pid||c<=0||pr==null||pr<0)return toast('Completá producto, cantidad y precio',true);
+  const p=S.productos.find(x=>x.id===pid)||{};
+  S.cpA.h=cpLeerCab();
+  S.cpA.items.push({productoId:pid,nombre:p.nombre,kg:p.kg,marcaId:mid,marcaNombre:marcaN(mid),cant:c,precio:pr,vacios:vac,subtotal:c*pr});
+  blur();render();
+}
+function cpQuitar(i){S.cpA.h=cpLeerCab();S.cpA.items.splice(i,1);blur();render()}
+function cpCrear(){
+  const h=cpLeerCab(),c=central();S.cpA.h=h;
+  if(!c)return toast('Primero creá el punto Central',true);if(!h.prov)return toast('Elegí el proveedor',true);if(!S.cpA.items.length)return toast('Agregá al menos una línea',true);
+  const items=S.cpA.items,total=items.reduce((a,i)=>a+i.subtotal,0);
+  const pagado=h.medio==='cuenta'?0:(h.pag===''?total:Math.min(Math.max(parseFloat(h.pag)||0,0),total)),aProv=total-pagado;
+  const tc=pagado>0&&h.medio==='efectivo'?centralTurno():null;
+  if(pagado>0&&h.medio==='efectivo'&&!tc&&!confirm('No hay caja central abierta: el pago en efectivo no se descuenta de ninguna caja. ¿Seguir?'))return;
+  if(tc&&pagado>0){const esp=(tc.fondoInicial||0)+S.movCaja.filter(m=>m.turnoId===tc.id&&m.medio==='efectivo').reduce((a,m)=>a+(m.importe||0),0);if(pagado>esp&&!confirm('La caja central tiene '+money(esp)+' en efectivo y la compra paga '+money(pagado)+'. ¿Seguir igual?'))return}
+  const id=nid(),b=db.batch(),ts=TS.now(),dia=hoy();
+  b.set(T().collection('compras').doc(id),{proveedorId:h.prov,proveedorNombre:provN(h.prov),items,total,pagado,aProveedor:aProv,medio:h.medio,comprobante:h.comp,fecha:h.fecha,nota:h.nota,ubicacionId:c.id,turnoId:tc?tc.id:null,estado:'ok',uid:S.user.uid,usuario:S.perfil.nombre,ts,dia,appVersion:VERSION});
+  items.forEach(i=>{ajusteStock(b,c.id,i.productoId,i.marcaId,'lleno',i.cant,'compra',{refTipo:'compra',refId:id});if(i.vacios)ajusteStock(b,c.id,i.productoId,i.marcaId,'vacio',-i.vacios,'compra_canje',{refTipo:'compra',refId:id})});
+  if(tc&&pagado>0)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:tc.id,ubicacionId:c.id,tipo:'compra',medio:'efectivo',importe:-pagado,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+  if(aProv>0){
+    b.set(T().collection('provCte').doc(nid()),{proveedorId:h.prov,tipo:'compra',importe:aProv,compraId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+    b.set(T().collection('provSaldos').doc(h.prov),{proveedorId:h.prov,saldo:FV.increment(aProv)},{merge:true});
+  }
+  audit(b,'compra',provN(h.prov)+' '+money(total)+' ('+h.medio+')'+(h.comp?' comp. '+h.comp:''));
+  S.cpA={items:[],h:{}};commit(b,'Compra registrada: stock sumado a la central');
+}
+function cpAnular(id){
+  const c=S.compras.find(x=>x.id===id);if(!c||c.estado!=='ok')return;
+  const mo=prompt('Motivo de la anulación (obligatorio):');if(!mo||!mo.trim())return toast('Falta el motivo',true);
+  if(!confirm('Se anula la compra de '+money(c.total)+': sale el stock de la central, se devuelve la plata a la caja y se ajusta la cuenta del proveedor. ¿Confirmar?'))return;
+  const b=db.batch(),ts=TS.now(),dia=hoy();
+  b.update(T().collection('compras').doc(id),{estado:'anulada',anuladaPor:S.perfil.nombre,anuladaTs:ts,anulacionMotivo:mo.trim()});
+  c.items.forEach(i=>{ajusteStock(b,c.ubicacionId,i.productoId,i.marcaId,'lleno',-i.cant,'anulacion_compra',{refTipo:'compra',refId:id});if(i.vacios)ajusteStock(b,c.ubicacionId,i.productoId,i.marcaId,'vacio',i.vacios,'anulacion_compra',{refTipo:'compra',refId:id})});
+  if(c.turnoId&&c.pagado>0)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:c.turnoId,ubicacionId:c.ubicacionId,tipo:'anulacion',medio:'efectivo',importe:c.pagado,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+  if(c.aProveedor>0){
+    b.set(T().collection('provCte').doc(nid()),{proveedorId:c.proveedorId,tipo:'anulacion',importe:-c.aProveedor,compraId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+    b.set(T().collection('provSaldos').doc(c.proveedorId),{proveedorId:c.proveedorId,saldo:FV.increment(-c.aProveedor)},{merge:true});
+  }
+  audit(b,'anular_compra',c.proveedorNombre+' '+money(c.total)+' · '+mo.trim());commit(b,'Compra anulada');
+}
+function nuevoProv(){
+  const n=val('pv_n');if(!n)return toast('Poné el nombre del proveedor',true);
+  const b=db.batch();b.set(T().collection('proveedores').doc(nid()),{nombre:n,telefono:val('pv_t'),activo:true,creadoTs:TS.now()});audit(b,'crear_proveedor',n);commit(b,'Proveedor creado');
+}
+function toggleProv(id,act){const b=db.batch();b.update(T().collection('proveedores').doc(id),{activo:act});audit(b,act?'activar_proveedor':'desactivar_proveedor',provN(id));commit(b,'Listo')}
+function pvPagar(id){
+  const m=num('pp_m'),medio=val('pp_t');if(!m||m<=0)return toast('Poné el monto',true);
+  const c=central(),tc=medio==='efectivo'?centralTurno():null;
+  if(medio==='efectivo'&&!tc&&!confirm('No hay caja central abierta: el pago no se descuenta de ninguna caja. ¿Seguir?'))return;
+  const sd=S.provSaldos[id]||0;if(m>sd&&!confirm('El pago ('+money(m)+') es mayor que lo que se le debe ('+money(sd)+'). ¿Seguir?'))return;
+  const rid=nid(),b=db.batch(),ts=TS.now(),dia=hoy();
+  b.set(T().collection('provCte').doc(rid),{proveedorId:id,tipo:'pago',importe:-m,medio,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+  b.set(T().collection('provSaldos').doc(id),{proveedorId:id,saldo:FV.increment(-m)},{merge:true});
+  if(tc)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:tc.id,ubicacionId:c.id,tipo:'pago_proveedor',medio:'efectivo',importe:-m,refId:rid,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+  audit(b,'pago_proveedor',provN(id)+' '+m+' ('+medio+')');commit(b,'Pago registrado');
+}
+function gxCrear(){
+  const ubi=val('gx_u'),cat=val('gx_c'),m=num('gx_m'),medio=val('gx_t'),nota=val('gx_n');
+  if(!ubi||!m||m<=0)return toast('Elegí el punto y poné el monto',true);if(cat==='Otros'&&!nota)return toast('En "Otros" escribí una nota',true);
+  const tc=medio==='efectivo'?S.turnos.find(t=>t.ubicacionId===ubi):null;
+  if(medio==='efectivo'&&!tc&&!confirm('Ese punto no tiene la caja abierta: el gasto no se descuenta de ninguna caja. ¿Seguir?'))return;
+  const id=nid(),b=db.batch(),ts=TS.now(),dia=hoy();
+  b.set(T().collection('gastos').doc(id),{ubicacionId:ubi,ubicacionNombre:ubiN(ubi),turnoId:tc?tc.id:null,categoria:cat,monto:m,medio,nota,estado:'ok',uid:S.user.uid,usuario:S.perfil.nombre,ts,dia,origen:'panel',appVersion:VERSION});
+  if(tc)b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:tc.id,ubicacionId:ubi,tipo:'gasto',medio:'efectivo',importe:-m,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia});
+  audit(b,'gasto',ubiN(ubi)+' '+cat+' '+m+' ('+medio+')');commit(b,'Gasto registrado');
+}
+function gxAnular(id){
+  const g=S.gastos.find(x=>x.id===id);if(!g||g.estado!=='ok')return;
+  const mo=prompt('Motivo de la anulación (obligatorio):');if(!mo||!mo.trim())return toast('Falta el motivo',true);
+  if(!confirm('Se anula el gasto de '+money(g.monto)+(g.turnoId?' y se devuelve a la caja':'')+'. ¿Confirmar?'))return;
+  const b=db.batch(),ts=TS.now();
+  b.update(T().collection('gastos').doc(id),{estado:'anulado',anuladoPor:S.perfil.nombre,anuladoTs:ts,anulacionMotivo:mo.trim()});
+  if(g.turnoId&&g.medio==='efectivo')b.set(T().collection('movimientosCaja').doc(nid()),{turnoId:g.turnoId,ubicacionId:g.ubicacionId,tipo:'anulacion',medio:'efectivo',importe:g.monto,refId:id,uid:S.user.uid,usuario:S.perfil.nombre,ts,dia:hoy()});
+  audit(b,'anular_gasto',g.categoria+' '+g.monto+' · '+mo.trim());commit(b,'Gasto anulado');
+}
+
+/* ---------- vistas ---------- */
+function vLogin(){return `<div class="login card"><h1 class="logo" id="logo" style="font-size:36px">GasAR</h1><p class="mut">Panel de administración</p>
+<label>Mail</label><input id="em" type="email" autocomplete="username"><div style="height:8px"></div><label>Clave</label><input id="pw" type="password" autocomplete="current-password">
+<div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button></div>`}
+function vRaven(){
+  return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">Modo Raven</span><button class="ico" data-a="salir">Salir</button></div></header><main>
+  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.plan||'')}</span></span><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
+  <div class="card"><h2>Crear distribuidora nueva</h2><div class="f">
+  <div><label>Nombre de la distribuidora</label><input id="dn_n"></div><div><label>Nombre del dueño</label><input id="dn_a"></div>
+  <div><label>Mail del dueño</label><input id="dn_e" type="email"></div><div><label>Clave inicial</label><input id="dn_p" type="password"></div></div>
+  <div style="height:12px"></div><button class="btn pri" data-a="crearDist">CREAR</button><p class="mut" style="font-size:14px">Se crean los productos de 10, 15 y 40 kg (con precio 0) y el punto Central.</p></div></main>`;
+}
+const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios']];
+function head(){
+  const adm=S.perfil.rol==='administrador'||S.raven;
+  return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">${esc((S.tenant||{}).nombre||'')} · ${esc(S.perfil.nombre)}${S.online?'':' · sin señal'}</span>
+  <button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button>${S.raven?'<button class="ico" data-a="salirT">Distribuidoras</button>':''}<button class="ico" data-a="salir">Salir</button></div>
+  <nav>${TABS.filter(([k])=>adm||k!=='usuarios').map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}</button>`).join('')}</nav></header>`;
+}
+function stockMap(){
+  const m={};S.saldos.forEach(s=>{(m[s.ubicacionId]=m[s.ubicacionId]||{});const k=s.productoId+'|'+s.marcaId;(m[s.ubicacionId][k]=m[s.ubicacionId][k]||{ll:0,va:0,p:s.productoId,m:s.marcaId});m[s.ubicacionId][k][s.tipo==='lleno'?'ll':'va']+=s.cantidad||0});return m;
+}
+function vResumen(){
+  const ok=okVentas(),tot=ok.reduce((a,v)=>a+v.total,0),sm=stockMap();
+  let ll=0,va=0;Object.values(sm).forEach(u=>Object.values(u).forEach(x=>{ll+=x.ll;va+=x.va}));
+  const porMedio={},porUbi={},porProd={};
+  ok.forEach(v=>{porMedio[v.medio]=(porMedio[v.medio]||0)+v.total;porUbi[v.ubicacionId]=(porUbi[v.ubicacionId]||{n:0,t:0});porUbi[v.ubicacionId].n++;porUbi[v.ubicacionId].t+=v.total;
+    v.items.forEach(i=>{const k=i.productoId;porProd[k]=(porProd[k]||{c:0,t:0});porProd[k].c+=i.cant;porProd[k].t+=i.subtotal})});
+  const al=[];
+  const c=central();
+  S.productos.filter(p=>p.activo&&p.stockMinimo>0).forEach(p=>{
+    const q=c&&sm[c.id]?Object.values(sm[c.id]).filter(x=>x.p===p.id).reduce((a,x)=>a+x.ll,0):0;
+    if(q<p.stockMinimo)al.push(`<div class="alert">Stock bajo en Central: ${esc(p.nombre)} — quedan ${q} (mínimo ${p.stockMinimo})</div>`)});
+  S.productos.filter(p=>p.activo&&!(p.precio>0)).forEach(p=>al.push(`<div class="alert b">Falta cargar el precio de ${esc(p.nombre)} (Productos y marcas)</div>`));
+  Object.entries(sm).forEach(([u,m])=>Object.values(m).forEach(x=>{if(x.ll<0||x.va<0)al.push(`<div class="alert b">Stock negativo en ${esc(ubiN(u))}: ${esc(prodN(x.p))} ${esc(marcaN(x.m))} (${x.ll<0?x.ll+' llenas ':''}${x.va<0?x.va+' vacías':''}). Revisar o ajustar.</div>`)}));
+  const rp=S.rends.filter(r=>r.estado==='pendiente');if(rp.length)al.push(`<div class="alert">${rp.length} rendición(es) pendiente(s) de aprobar${rp.some(r=>r.efectivo.dif||r.lineas.some(l=>l.dif))?' — con diferencias':''}. Mirá la pestaña Rendiciones.</div>`);
+  const ct=S.cargas.filter(c=>c.estado==='en_transito');if(ct.length)al.push(`<div class="alert">${ct.length} carga(s) en tránsito esperando que el chofer confirme.</div>`);
+  const cd=S.cargas.filter(c=>c.estado==='recibida'&&c.conDiferencia);if(cd.length)al.push(`<div class="alert b">${cd.length} carga(s) se recibieron con diferencia. Revisá la pestaña Cargas.</div>`);
+  const deudores=S.revs.map(r=>({r,di:deudaInfo(r.id)})),deudaTot=deudores.reduce((a,x)=>a+Math.max(0,x.di.saldo),0);
+  const vencidos=deudores.filter(x=>x.di.venc>0);if(vencidos.length)al.push(`<div class="alert b">Cuentas vencidas: ${vencidos.map(x=>esc(x.r.nombre)+' '+money(x.di.venc)).join(' · ')}</div>`);
+  const dif=ok.filter(v=>v.conDiferencia).length;if(dif)al.push(`<div class="alert">${dif} venta(s) de ${esc(S.fecha)} se hicieron sin stock registrado. Revisá la pestaña Ventas.</div>`);
+  const cuenta=o=>Object.keys(o).length?'':'<p class="mut">Sin datos todavía.</p>';
+  return `<main>${al.join('')}<div class="grid cards">
+  <div class="card kpi"><span class="mut">Ventas de ${esc(S.fecha===hoy()?'hoy':S.fecha)}</span><span class="num">${money(tot)}</span><span class="mut">${ok.length} ventas</span></div>
+  <div class="card kpi"><span class="mut">Garrafas llenas (total)</span><span class="num">${ll}</span></div>
+  <div class="card kpi"><span class="mut">Envases vacíos (total)</span><span class="num">${va}</span></div>
+  <div class="card kpi"><span class="mut">Cajas abiertas</span><span class="num">${S.turnos.length}</span></div>
+  <div class="card kpi"><span class="mut">Rendiciones pendientes</span><span class="num">${rp.length}</span></div>
+  <div class="card kpi"><span class="mut">Deben los revendedores</span><span class="num">${money(deudaTot)}</span></div>
+  <div class="card kpi"><span class="mut">Gastos de hoy</span><span class="num">${money(S.gastos.filter(g=>g.estado==='ok'&&g.dia===hoy()).reduce((a,g)=>a+g.monto,0))}</span></div>
+  <div class="card kpi"><span class="mut">Compras de hoy</span><span class="num">${money(S.compras.filter(c=>c.estado==='ok'&&c.dia===hoy()).reduce((a,c)=>a+c.total,0))}</span></div>
+  <div class="card kpi"><span class="mut">Se debe a proveedores</span><span class="num">${money(S.provs.reduce((a,p)=>a+Math.max(0,S.provSaldos[p.id]||0),0))}</span></div></div>
+  <div class="grid cards"><div class="card"><h2>Dinero por medio de pago</h2>${Object.entries(porMedio).map(([k,v])=>`<div class="row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}${cuenta(porMedio)}</div>
+  <div class="card"><h2>Ventas por punto</h2>${Object.entries(porUbi).map(([k,v])=>`<div class="row"><span>${esc(ubiN(k))} (${v.n})</span><b>${money(v.t)}</b></div>`).join('')}${cuenta(porUbi)}</div>
+  <div class="card"><h2>Ventas por producto</h2>${Object.entries(porProd).map(([k,v])=>`<div class="row"><span>${esc(prodN(k))} (${v.c})</span><b>${money(v.t)}</b></div>`).join('')}${cuenta(porProd)}</div></div>
+  <div class="card"><h2>Dinero en cajas abiertas</h2>${S.turnos.length?S.turnos.map(t=>{const mv=S.movCaja.filter(m=>m.turnoId===t.id),ef=(t.fondoInicial||0)+mv.filter(m=>m.medio==='efectivo').reduce((a,m)=>a+(m.importe||0),0),otros=mv.filter(m=>m.medio!=='efectivo').reduce((a,m)=>a+(m.importe||0),0);
+    return `<div class="row"><span><b>${esc(ubiN(t.ubicacionId))}</b> · abrió ${esc(t.abiertaPor||'')} ${fh(t.abiertaTs)}</span><span>Efectivo <b>${money(ef)}</b> · otros medios ${money(otros)}</span></div>`}).join(''):'<p class="mut">No hay cajas abiertas.</p>'}</div></main>`;
+}
+function vStock(){
+  const sm=stockMap();let h='<main>';
+  if(!S.ubis.length)h+='<div class="card">Creá primero los puntos de venta.</div>';
+  S.ubis.forEach(u=>{
+    const rows=Object.values(sm[u.id]||{}).sort((a,b)=>prodN(a.p).localeCompare(prodN(b.p)));
+    const tl=rows.reduce((a,x)=>a+x.ll,0),tv=rows.reduce((a,x)=>a+x.va,0);
+    h+=`<div class="card"><h2>${esc(u.nombre)} <span class="tag">${TIPOS[u.tipo]||''}</span></h2><div class="tw"><table><tr><th>Producto</th><th>Marca</th><th class="r">Llenas</th><th class="r">Vacías</th></tr>
+    ${rows.map(x=>`<tr><td>${esc(prodN(x.p))}</td><td>${esc(marcaN(x.m))}</td><td class="r ${x.ll<0?'bad':''}">${x.ll}</td><td class="r ${x.va<0?'bad':''}">${x.va}</td></tr>`).join('')||'<tr><td colspan="4" class="mut">Sin movimientos de stock todavía. Cargá el stock inicial en "Ajustar stock".</td></tr>'}
+    <tr><th colspan="2">Total</th><th class="r">${tl}</th><th class="r">${tv}</th></tr></table></div></div>`;
+  });
+  if(S.ctaEnvAll.length){const ag={};S.ctaEnvAll.forEach(e=>{const k=e.productoId+'|'+e.marcaId;ag[k]=(ag[k]||0)+e.cantidad});
+    h+=`<div class="card"><h2>Envases en poder de revendedores</h2>${Object.entries(ag).map(([k,c])=>{const [p,m]=k.split('|');return `<div class="row"><span>${esc(prodN(p))} · ${esc(marcaN(m))}</span><b>${c}</b></div>`}).join('')}</div>`}
+  const tr=S.cargas.filter(c=>c.estado==='en_transito');
+  if(tr.length)h+=`<div class="card"><h2>En tránsito (salió de la central, no confirmado)</h2>${tr.map(c=>`<div class="row"><span><b>${esc(c.destinoNombre)}</b> · ${fh(c.ts)}</span><span>${c.items.map(i=>i.cant+'×'+i.kg+'kg '+esc(i.marcaNombre)).join(', ')}</span></div>`).join('')}</div>`;
+  return h+'</main>';
+}
+function vVentas(){
+  const ok=okVentas();
+  return `<main><div class="card"><div class="f"><div><label>Día</label><input type="date" id="vf" value="${esc(S.fecha)}"></div><div><label>Total</label><b class="num" style="font-size:28px">${money(ok.reduce((a,v)=>a+v.total,0))}</b></div><div><label>Ventas</label><b class="num" style="font-size:28px">${ok.length}</b></div></div></div>
+  <div class="card tw"><table><tr><th>Hora</th><th>N°</th><th>Punto</th><th>Vendedor</th><th>Detalle</th><th>Pago</th><th class="r">Total</th><th></th></tr>
+  ${S.ventas.map(v=>`<tr><td>${fh(v.ts).slice(6)}</td><td>${esc(v.id.slice(0,4).toUpperCase())}</td><td>${esc(v.ubicacionNombre||ubiN(v.ubicacionId))}</td><td>${esc(v.usuario)}${v.revendedorNombre?' → '+esc(v.revendedorNombre):''}</td>
+  <td>${v.items.map(i=>i.cant+'×'+i.kg+'kg '+esc(i.marcaNombre)+(i.vacios?' (-'+i.vacios+' vac.)':'')).join(', ')}</td><td>${esc(v.medio)}</td><td class="r"><b>${money(v.total)}</b></td>
+  <td>${v.estado==='anulada'?'<span class="tag bad">ANULADA</span>':`${v.conDiferencia?'<span class="tag w">sin stock</span> ':''}<button class="btn sm bad" data-a="anular" data-id="${v.id}">Anular</button>`}</td></tr>`).join('')||'<tr><td colspan="8" class="mut">No hay ventas ese día.</td></tr>'}</table></div></main>`;
+}
+function vCajas(){
+  return `<main><div class="card"><h2>Cajas abiertas</h2>${S.turnos.length?S.turnos.map(t=>`<div class="row"><span><b>${esc(ubiN(t.ubicacionId))}</b> · ${esc(t.abiertaPor||'')} · desde ${fh(t.abiertaTs)}</span><span>fondo ${money(t.fondoInicial)}</span></div>`).join(''):'<p class="mut">No hay cajas abiertas.</p>'}</div>
+  <div class="card tw"><h2>Últimos movimientos de caja</h2><table><tr><th>Fecha</th><th>Punto</th><th>Tipo</th><th>Medio</th><th class="r">Importe</th><th>Usuario</th></tr>
+  ${S.movCaja.slice(0,60).map(m=>`<tr><td>${fh(m.ts)}</td><td>${esc(ubiN(m.ubicacionId))}</td><td>${esc(m.tipo)}${m.motivo?' · '+esc(m.motivo):''}</td><td>${esc(m.medio||'')}</td><td class="r ${m.importe<0?'bad':'okc'}">${money(m.importe)}</td><td>${esc(m.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="mut">Sin movimientos.</td></tr>'}</table></div>
+  <div class="card tw"><h2>Últimos turnos</h2><table><tr><th>Punto</th><th>Abrió</th><th>Cerró</th><th>Estado</th><th class="r">Esperado</th><th class="r">Contado</th><th class="r">Diferencia</th></tr>
+  ${S.cierres.map(t=>`<tr><td>${esc(ubiN(t.ubicacionId))}</td><td>${fh(t.abiertaTs)}</td><td>${fh(t.cierreTs)}</td><td>${esc(t.estado)}</td><td class="r">${t.estado==='cerrada'?money(t.efectivoEsperado):''}</td><td class="r">${t.estado==='cerrada'?money(t.efectivoContado):''}</td><td class="r ${t.diferencia?'bad':''}">${t.estado==='cerrada'?money(t.diferencia):''}</td></tr>`).join('')||'<tr><td colspan="7" class="mut">Sin turnos todavía.</td></tr>'}</table></div></main>`;
+}
+function vHistorial(){
+  const b=k=>`<button class="btn sm ${S.hist===k?'pri':''}" data-a="hist" data-v="${k}">${k==='stock'?'Movimientos de stock':'Auditoría'}</button>`;
+  return `<main><div style="display:flex;gap:8px;margin-bottom:12px">${b('stock')}${b('audit')}</div><div class="card tw">`+(S.hist==='stock'?
+  `<table><tr><th>Fecha</th><th>Punto</th><th>Producto</th><th>Marca</th><th>Tipo</th><th class="r">Cant.</th><th>Motivo</th><th>Usuario</th></tr>${S.movs.map(m=>`<tr><td>${fh(m.ts)}</td><td>${esc(ubiN(m.ubicacionId))}</td><td>${esc(prodN(m.productoId))}</td><td>${esc(marcaN(m.marcaId))}</td><td>${esc(m.tipo)}</td><td class="r ${m.cantidad<0?'bad':'okc'}">${m.cantidad>0?'+':''}${m.cantidad}</td><td>${esc(m.motivo)}</td><td>${esc(m.usuario)}</td></tr>`).join('')||'<tr><td colspan="8" class="mut">Sin movimientos.</td></tr>'}</table>`:
+  `<table><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>${S.audit.map(a=>`<tr><td>${fh(a.ts)}</td><td>${esc(a.usuario)}</td><td>${esc(a.accion)}</td><td style="white-space:normal">${esc(a.detalle||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="mut">Sin registros.</td></tr>'}</table>`)+`</div><p class="mut">Se muestran los últimos 100. Nada se borra: las correcciones se hacen con anulaciones y ajustes.</p></main>`;
+}
+function vAjustes(){
+  const ms=[{id:SIN,nombre:'Sin marca'},...S.marcas.filter(m=>m.activa)];
+  const opt=(a,f)=>a.map(x=>`<option value="${esc(x.id)}">${esc(f(x))}</option>`).join('');
+  return `<main><div class="card"><h2>Ajustar stock</h2><p class="mut">Usalo para la carga inicial, mermas, roturas o correcciones de conteo. Queda registrado con tu nombre.</p><div class="f">
+  <div><label>Punto</label><select id="aj_u">${opt(S.ubis.filter(u=>u.activa!==false),u=>u.nombre)}</select></div>
+  <div><label>Producto</label><select id="aj_p">${opt(S.productos.filter(p=>p.activo),p=>p.nombre)}</select></div>
+  <div><label>Marca</label><select id="aj_m">${opt(ms,m=>m.nombre)}</select></div>
+  <div><label>Qué es</label><select id="aj_t"><option value="lleno">Garrafa llena</option><option value="vacio">Envase vacío</option></select></div>
+  <div><label>Entra o sale</label><select id="aj_s"><option value="entra">Entra (suma)</option><option value="sale">Sale (resta)</option></select></div>
+  <div><label>Cantidad</label><input id="aj_c" type="number" inputmode="numeric" min="1"></div>
+  <div><label>Motivo</label><select id="aj_mo"><option value="carga_inicial">Carga inicial</option><option value="merma">Merma / rotura</option><option value="conteo">Corrección de conteo</option><option value="otro">Otro</option></select></div>
+  <div><label>Nota</label><input id="aj_n"></div></div><div style="height:12px"></div><button class="btn pri" data-a="ajuste">REGISTRAR AJUSTE</button></div></main>`;
+}
+function vCatalogo(){
+  return `<main><div class="card tw"><h2>Productos</h2><table><tr><th>Producto</th><th>Precio</th><th>Precio revendedor</th><th>Precio envase</th><th>Stock mínimo central</th><th></th></tr>
+  ${S.productos.map(p=>`<tr><td>${esc(p.nombre)} ${p.activo?'':'<span class="tag bad">inactivo</span>'}</td><td><input id="pr_${p.id}" type="number" value="${p.precio||0}" style="width:110px"></td><td><input id="prv_${p.id}" type="number" value="${p.precioRevendedor||0}" style="width:110px"></td><td><input id="pe_${p.id}" type="number" value="${p.precioEnvase||0}" style="width:110px"></td><td><input id="sm_${p.id}" type="number" value="${p.stockMinimo||0}" style="width:90px"></td>
+  <td><button class="btn sm pri" data-a="gprod" data-id="${p.id}">Guardar</button> <button class="btn sm" data-a="tprod" data-id="${p.id}" data-v="${p.activo?0:1}">${p.activo?'Desactivar':'Activar'}</button></td></tr>`).join('')}</table>
+  <p class="mut">El precio del envase se cobra al cliente común que no entrega un envase vacío. Si el precio de revendedor está en 0, se usa el precio común. A los revendedores sin envase no se les cobra: se anota como envase adeudado.</p></div>
+  <div class="card"><h2>Agregar producto</h2><div class="f"><div><label>Nombre</label><input id="np_n" placeholder="Garrafa 5 kg"></div><div><label>Kilos</label><input id="np_kg" type="number"></div><div><label>Precio</label><input id="np_p" type="number"></div><div><label>Precio revendedor</label><input id="np_r" type="number"></div><div><label>Precio envase</label><input id="np_e" type="number"></div><div><label>Stock mínimo</label><input id="np_m" type="number"></div></div><div style="height:12px"></div><button class="btn pri" data-a="nprod">AGREGAR</button></div>
+  <div class="card"><h2>Marcas de envases</h2>${S.marcas.map(m=>`<div class="row"><span>${esc(m.nombre)} ${m.activa?'':'<span class="tag bad">inactiva</span>'}</span><button class="btn sm" data-a="tmarca" data-id="${m.id}" data-v="${m.activa?0:1}">${m.activa?'Desactivar':'Activar'}</button></div>`).join('')||'<p class="mut">Todavía no hay marcas. Mientras tanto se usa "Sin marca".</p>'}
+  <div style="height:12px"></div><div class="f"><div><label>Nueva marca</label><input id="nm_n"></div><div><button class="btn pri" data-a="nmarca">AGREGAR MARCA</button></div></div></div></main>`;
+}
+function vPuntos(){
+  return `<main><div class="card"><h2>Puntos de venta</h2>${S.ubis.map(u=>`<div class="row"><span><b>${esc(u.nombre)}</b> <span class="tag">${TIPOS[u.tipo]||''}</span> ${u.activa===false?'<span class="tag bad">inactivo</span>':''}</span><button class="btn sm" data-a="tubi" data-id="${u.id}" data-v="${u.activa===false?1:0}">${u.activa===false?'Activar':'Desactivar'}</button></div>`).join('')}
+  <div style="height:12px"></div><div class="f"><div><label>Nombre</label><input id="nu_n" placeholder="Camioneta 1"></div><div><label>Tipo</label><select id="nu_t"><option value="camioneta">Camioneta</option><option value="revendedores">Revendedores</option><option value="central">Central</option></select></div><div><button class="btn pri" data-a="nubi">AGREGAR PUNTO</button></div></div></div></main>`;
+}
+function vUsuarios(){
+  return `<main><div class="card tw"><h2>Usuarios</h2><table><tr><th>Nombre</th><th>Mail</th><th>Rol</th><th>Punto</th><th></th></tr>
+  ${S.usuarios.map(u=>`<tr><td>${esc(u.nombre)}</td><td>${esc(u.email||'')}</td><td>${esc(ROLES[u.rol]||u.rol)}</td><td>${u.ubicacionId?esc(ubiN(u.ubicacionId)):''}</td><td>${u.activo?'':'<span class="tag bad">inactivo</span> '}<button class="btn sm" data-a="tusu" data-id="${u.id}" data-v="${u.activo?0:1}">${u.activo?'Desactivar':'Activar'}</button></td></tr>`).join('')}</table></div>
+  <div class="card"><h2>Agregar usuario</h2><div class="f"><div><label>Nombre</label><input id="nus_n"></div><div><label>Mail</label><input id="nus_e" type="email"></div><div><label>Clave inicial</label><input id="nus_p" type="password"></div>
+  <div><label>Rol</label><select id="nus_r">${Object.entries(ROLES).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
+  <div><label>Punto (solo vendedores)</label><select id="nus_u"><option value="">—</option>${S.ubis.filter(u=>u.activa!==false).map(u=>`<option value="${u.id}">${esc(u.nombre)}</option>`).join('')}</select></div></div>
+  <div style="height:12px"></div><button class="btn pri" data-a="nusu">CREAR USUARIO</button><p class="mut">Los vendedores usan la app del vendedor con este mismo mail y clave.</p></div></main>`;
+}
+function vCargas(){
+  const cams=S.ubis.filter(u=>u.tipo==='camioneta'&&u.activa!==false);
+  const ms=[{id:SIN,nombre:'Sin marca'},...S.marcas.filter(m=>m.activa)];
+  const opt=(a,f)=>a.map(x=>`<option value="${esc(x.id)}">${esc(f(x))}</option>`).join('');
+  return `<main><div class="card"><h2>Cargar una camioneta</h2><p class="mut">Sale del stock de la central ahora y entra a la camioneta cuando el chofer confirma lo que recibió.</p>
+  ${cams.length?'':'<div class="alert">No hay camionetas. Creálas en Puntos de venta.</div>'}
+  <div class="f"><div><label>Camioneta</label><select id="cg_d">${cams.map(u=>`<option value="${u.id}" ${S.cgA.dest===u.id?'selected':''}>${esc(u.nombre)}</option>`).join('')}</select></div>
+  <div><label>Producto</label><select id="cg_p">${opt(S.productos.filter(p=>p.activo),p=>p.nombre)}</select></div>
+  <div><label>Marca</label><select id="cg_m">${opt(ms,m=>m.nombre)}</select></div>
+  <div><label>Cantidad</label><input id="cg_c" type="number" inputmode="numeric" min="1"></div>
+  <div><button class="btn" data-a="cgadd">+ Agregar línea</button></div></div>
+  ${S.cgA.items.length?`<div style="height:10px"></div>${S.cgA.items.map((i,ix)=>`<div class="row"><span>${i.cant} × ${esc(i.nombre)} · ${esc(i.marcaNombre)}</span><button class="btn sm bad" data-a="cgdel" data-i="${ix}">Quitar</button></div>`).join('')}<div style="height:10px"></div><button class="btn pri" data-a="cgok">ENVIAR CARGA</button>`:''}</div>
+  <div class="card tw"><h2>Últimas cargas</h2><table><tr><th>Fecha</th><th>Destino</th><th>Detalle</th><th>Estado</th><th>Recibió</th><th></th></tr>
+  ${S.cargas.map(c=>{const it=c.itemsRecibidos||c.items;return `<tr><td>${fh(c.ts)}</td><td>${esc(c.destinoNombre)}</td><td>${it.map(i=>(c.itemsRecibidos?i.recibida+'/'+i.cant:i.cant)+'×'+i.kg+'kg '+esc(i.marcaNombre)).join(', ')}</td>
+  <td>${c.estado==='en_transito'?'<span class="tag w">En tránsito</span>':c.estado==='recibida'?(c.conDiferencia?'<span class="tag bad">Recibida con diferencia</span>':'<span class="tag">Recibida</span>'):'<span class="tag bad">Anulada</span>'}</td><td>${c.recibidaTs?esc(c.recibidaPor||'')+' '+fh(c.recibidaTs):''}</td>
+  <td>${c.estado==='en_transito'?`<button class="btn sm bad" data-a="cgcancel" data-id="${c.id}">Cancelar</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="6" class="mut">Todavía no hay cargas.</td></tr>'}</table></div></main>`;
+}
+function vRendiciones(){
+  const pend=S.rends.filter(r=>r.estado==='pendiente'),resto=S.rends.filter(r=>r.estado!=='pendiente');
+  const card=r=>{
+    const dif=r.lineas.filter(l=>l.dif);
+    return `<div class="card"><div class="row" style="border:0"><span><b>${esc(r.ubicacionNombre)}</b> · ${esc(r.usuario)} · ${fh(r.ts)}</span><span>${r.estado==='pendiente'?'<span class="tag w">Pendiente</span>':'<span class="tag">Aprobada</span>'}</span></div>
+    <div class="grid cards" style="margin:8px 0"><div><span class="mut">Ventas</span><br><b>${r.ventasN} · ${money(r.ventasTotal)}</b></div>
+    <div><span class="mut">Efectivo esperado / declarado</span><br><b>${money(r.efectivo.esperado)} / ${money(r.efectivo.declarado)}</b></div>
+    <div><span class="mut">Diferencia de efectivo</span><br><b class="${r.efectivo.dif?'bad':'okc'}">${money(r.efectivo.dif)}</b></div></div>
+    <div class="tw"><table><tr><th>Producto</th><th>Marca</th><th>Tipo</th><th class="r">Esperado</th><th class="r">Contó</th><th class="r">Dif.</th></tr>
+    ${r.lineas.map(l=>`<tr><td>${l.kg} kg</td><td>${esc(l.marcaNombre)}</td><td>${l.tipo==='lleno'?'Llenas':'Vacías'}</td><td class="r">${l.esperado}</td><td class="r">${l.declarado}</td><td class="r ${l.dif?'bad':'okc'}">${l.dif>0?'+':''}${l.dif}</td></tr>`).join('')||'<tr><td colspan="6" class="mut">Sin stock declarado.</td></tr>'}</table></div>
+    ${dif.length||r.efectivo.dif?`<div class="alert" style="margin-top:8px">Hay diferencias para revisar antes de aprobar.</div>`:''}
+    ${r.estado==='pendiente'?`<div style="height:8px"></div><button class="btn pri" data-a="rendok" data-id="${r.id}">APROBAR RECEPCIÓN</button>`:`<p class="mut">Aprobada por ${esc(r.aprobadaPor||'')} ${fh(r.aprobadaTs)}</p>`}</div>`;
+  };
+  return `<main><h2 style="margin-bottom:10px">Pendientes de aprobar (${pend.length})</h2>${pend.map(card).join('')||'<div class="card mut">No hay rendiciones pendientes.</div>'}
+  ${resto.length?`<h2 style="margin:16px 0 10px">Anteriores</h2>${resto.map(card).join('')}`:''}</main>`;
+}
+function vRevendedores(){
+  const filas=S.revs.map(r=>{const di=deudaInfo(r.id),env=envRev(r.id);
+    return `<tr><td><b>${esc(r.nombre)}</b> ${r.activo===false?'<span class="tag bad">inactivo</span>':''}</td><td><input id="rt_${r.id}" value="${esc(r.telefono||'')}" style="width:130px"></td>
+    <td class="r"><b>${money(di.saldo)}</b></td><td class="r ${di.venc?'bad':''}">${di.venc?money(di.venc):'—'}</td><td>${di.prox||''}</td>
+    <td><input id="rd_${r.id}" type="number" value="${r.plazoDias??7}" style="width:70px"></td><td><input id="rl_${r.id}" type="number" value="${r.limiteCredito||0}" style="width:110px"></td>
+    <td>${env.map(e=>e.cantidad+'×'+((S.productos.find(p=>p.id===e.productoId)||{}).kg||'')+'kg '+esc(marcaN(e.marcaId))).join(', ')||'—'}</td>
+    <td><button class="btn sm pri" data-a="rvg" data-id="${r.id}">Guardar</button> <button class="btn sm" data-a="rvc" data-id="${r.id}">Cuenta</button> <button class="btn sm" data-a="rvt" data-id="${r.id}" data-v="${r.activo===false?1:0}">${r.activo===false?'Activar':'Desactivar'}</button></td></tr>`}).join('');
+  let det='';
+  if(S.revSel){
+    const id=S.revSel,di=deudaInfo(id),mv=S.ctaMov.filter(m=>m.revendedorId===id).sort((a,b)=>tms(b.ts)-tms(a.ts));
+    det=`<div class="card tw"><div class="row" style="border:0"><h2>Estado de cuenta · ${esc(revN(id))}</h2><button class="btn sm" data-a="rvx">Cerrar</button></div>
+    <div class="grid cards" style="margin-bottom:8px"><div><span class="mut">Debe</span><br><b class="num" style="font-size:26px">${money(di.saldo)}</b></div><div><span class="mut">Vencido</span><br><b class="num ${di.venc?'bad':''}" style="font-size:26px">${money(di.venc)}</b></div></div>
+    <div class="f"><div><label>Registrar pago</label><input id="rp_m" type="number" inputmode="decimal" placeholder="Monto"></div><div><label>Medio</label><select id="rp_t"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="qr">QR / MP</option></select></div><div><button class="btn pri" data-a="rvp" data-id="${id}">REGISTRAR PAGO</button></div></div>
+    <div style="height:10px"></div><table><tr><th>Fecha</th><th>Movimiento</th><th class="r">Importe</th><th>Vence</th><th>Envases</th><th>Usuario</th></tr>
+    ${mv.map(m=>`<tr><td>${fh(m.ts)}</td><td>${m.tipo==='venta'?'Venta a cuenta':m.tipo==='pago'?'Pago ('+esc(m.medio||'')+')':m.tipo==='envases'?'Devolución de envases':'Anulación'}</td><td class="r ${m.importe<0?'okc':''}">${m.importe?money(m.importe):''}</td><td>${esc(m.vencimiento||'')}</td>
+    <td>${(m.envases||[]).map(e=>(e.cant>0?'+':'')+e.cant+'×'+((S.productos.find(p=>p.id===e.productoId)||{}).kg||'')+'kg '+esc(marcaN(e.marcaId))).join(', ')}</td><td>${esc(m.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="mut">Sin movimientos.</td></tr>'}</table></div>`;
+  }
+  return `<main>${det}<div class="card tw"><h2>Revendedores</h2><table><tr><th>Nombre</th><th>Teléfono</th><th class="r">Debe</th><th class="r">Vencido</th><th>Próx. vence</th><th>Plazo (días)</th><th>Límite de crédito</th><th>Envases que debe</th><th></th></tr>
+  ${filas||'<tr><td colspan="9" class="mut">Todavía no hay revendedores.</td></tr>'}</table><p class="mut">Límite 0 = solo compra al contado. Si el límite se supera, el vendedor no puede dejar más a cuenta.</p></div>
+  <div class="card"><h2>Agregar revendedor</h2><div class="f"><div><label>Nombre</label><input id="nr_n"></div><div><label>Teléfono (WhatsApp)</label><input id="nr_t" inputmode="tel" placeholder="5491122334455"></div><div><label>Plazo (días)</label><input id="nr_d" type="number" value="7"></div><div><label>Límite de crédito</label><input id="nr_l" type="number" value="0"></div></div>
+  <div style="height:12px"></div><button class="btn pri" data-a="rvn">AGREGAR</button></div></main>`;
+}
+function vCompras(){
+  const h=S.cpA.h||{},ms=[{id:SIN,nombre:'Sin marca'},...S.marcas.filter(m=>m.activa)];
+  const opt=(a,f,sel)=>a.map(x=>`<option value="${esc(x.id)}" ${sel===x.id?'selected':''}>${esc(f(x))}</option>`).join('');
+  const total=S.cpA.items.reduce((a,i)=>a+i.subtotal,0);
+  return `<main><div class="card"><h2>Registrar compra</h2><p class="mut">Suma las garrafas llenas al stock de la central y descuenta los vacíos que entregaste en canje.</p>
+  ${S.provs.length?'':'<div class="alert">Primero cargá un proveedor en la pestaña Proveedores.</div>'}
+  <div class="f"><div><label>Proveedor</label><select id="cp_prov">${opt(S.provs.filter(p=>p.activo!==false),p=>p.nombre,h.prov)}</select></div>
+  <div><label>Comprobante N°</label><input id="cp_comp" value="${esc(h.comp||'')}"></div><div><label>Fecha</label><input id="cp_fecha" type="date" value="${esc(h.fecha||hoy())}"></div></div>
+  <div style="height:10px"></div><div class="f"><div><label>Producto</label><select id="cp_p">${opt(S.productos.filter(p=>p.activo),p=>p.nombre)}</select></div><div><label>Marca</label><select id="cp_m">${opt(ms,m=>m.nombre)}</select></div>
+  <div><label>Cantidad llenas</label><input id="cp_c" type="number" inputmode="numeric" min="1"></div><div><label>Precio unitario</label><input id="cp_pr" type="number" inputmode="decimal"></div>
+  <div><label>Vacíos que entregás (canje)</label><input id="cp_v" type="number" inputmode="numeric" min="0" value="0"></div><div><button class="btn" data-a="cpadd">+ Agregar línea</button></div></div>
+  ${S.cpA.items.length?`<div style="height:10px"></div>${S.cpA.items.map((i,ix)=>`<div class="row"><span>${i.cant} × ${esc(i.nombre)} · ${esc(i.marcaNombre)} a ${money(i.precio)}${i.vacios?' · canje '+i.vacios+' vacíos':''}</span><span><b>${money(i.subtotal)}</b> <button class="btn sm bad" data-a="cpdel" data-i="${ix}">Quitar</button></span></div>`).join('')}
+  <div class="row"><b>Total</b><b class="num" style="font-size:26px">${money(total)}</b></div>
+  <div class="f"><div><label>Forma de pago</label><select id="cp_medio"><option value="efectivo" ${h.medio==='efectivo'?'selected':''}>Efectivo (de la caja central)</option><option value="transferencia" ${h.medio==='transferencia'?'selected':''}>Transferencia</option><option value="cuenta" ${h.medio==='cuenta'?'selected':''}>A cuenta del proveedor</option></select></div>
+  <div><label>Pagás ahora (vacío = todo)</label><input id="cp_pag" type="number" inputmode="decimal" value="${esc(h.pag||'')}"></div><div><label>Nota</label><input id="cp_nota" value="${esc(h.nota||'')}"></div></div>
+  <div style="height:12px"></div><button class="btn pri" data-a="cpok">REGISTRAR COMPRA</button>`:''}</div>
+  <div class="card tw"><h2>Últimas compras</h2><table><tr><th>Fecha</th><th>Proveedor</th><th>Comp.</th><th>Detalle</th><th>Pago</th><th class="r">Total</th><th class="r">A cuenta</th><th></th></tr>
+  ${S.compras.map(c=>`<tr><td>${esc(c.fecha||fh(c.ts))}</td><td>${esc(c.proveedorNombre)}</td><td>${esc(c.comprobante||'')}</td><td>${c.items.map(i=>i.cant+'×'+i.kg+'kg '+esc(i.marcaNombre)+(i.vacios?' (canje '+i.vacios+')':'')).join(', ')}</td><td>${esc(c.medio)}</td><td class="r"><b>${money(c.total)}</b></td><td class="r">${c.aProveedor?money(c.aProveedor):''}</td>
+  <td>${c.estado==='anulada'?'<span class="tag bad">ANULADA</span>':`<button class="btn sm bad" data-a="cpx" data-id="${c.id}">Anular</button>`}</td></tr>`).join('')||'<tr><td colspan="8" class="mut">Todavía no hay compras.</td></tr>'}</table></div></main>`;
+}
+function vProveedores(){
+  const deuda=S.provs.reduce((a,p)=>a+Math.max(0,S.provSaldos[p.id]||0),0);
+  let det='';
+  if(S.provSel){
+    const id=S.provSel,mv=S.provMov.filter(m=>m.proveedorId===id).sort((a,b)=>tms(b.ts)-tms(a.ts));
+    det=`<div class="card tw"><div class="row" style="border:0"><h2>Cuenta · ${esc(provN(id))}</h2><button class="btn sm" data-a="pvx">Cerrar</button></div>
+    <p>Se le debe: <b class="num" style="font-size:26px">${money(S.provSaldos[id]||0)}</b></p>
+    <div class="f"><div><label>Registrar pago</label><input id="pp_m" type="number" inputmode="decimal" placeholder="Monto"></div><div><label>Medio</label><select id="pp_t"><option value="efectivo">Efectivo (caja central)</option><option value="transferencia">Transferencia</option></select></div><div><button class="btn pri" data-a="pvp" data-id="${id}">REGISTRAR PAGO</button></div></div>
+    <div style="height:10px"></div><table><tr><th>Fecha</th><th>Movimiento</th><th class="r">Importe</th><th>Usuario</th></tr>${mv.map(m=>`<tr><td>${fh(m.ts)}</td><td>${m.tipo==='compra'?'Compra a cuenta':m.tipo==='pago'?'Pago ('+esc(m.medio||'')+')':'Anulación'}</td><td class="r ${m.importe<0?'okc':''}">${money(m.importe)}</td><td>${esc(m.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="mut">Sin movimientos.</td></tr>'}</table></div>`;
+  }
+  return `<main>${det}<div class="card"><h2>Proveedores</h2><p>Total que se debe: <b class="num" style="font-size:26px">${money(deuda)}</b></p>
+  ${S.provs.map(p=>`<div class="row"><span><b>${esc(p.nombre)}</b> ${esc(p.telefono||'')} ${p.activo===false?'<span class="tag bad">inactivo</span>':''}</span><span><b>${money(S.provSaldos[p.id]||0)}</b> <button class="btn sm" data-a="pvc" data-id="${p.id}">Cuenta</button> <button class="btn sm" data-a="pvt" data-id="${p.id}" data-v="${p.activo===false?1:0}">${p.activo===false?'Activar':'Desactivar'}</button></span></div>`).join('')||'<p class="mut">Todavía no hay proveedores.</p>'}</div>
+  <div class="card"><h2>Agregar proveedor</h2><div class="f"><div><label>Nombre</label><input id="pv_n"></div><div><label>Teléfono</label><input id="pv_t"></div><div><button class="btn pri" data-a="pvn">AGREGAR</button></div></div></div></main>`;
+}
+function vGastos(){
+  const okg=S.gastos.filter(g=>g.estado==='ok'),hoyT=okg.filter(g=>g.dia===hoy()).reduce((a,g)=>a+g.monto,0);
+  return `<main><div class="card"><h2>Registrar gasto</h2><p class="mut">Los gastos de las camionetas los cargan los choferes desde la app. Acá podés cargar los de la central o los que se pagaron por transferencia.</p><div class="f">
+  <div><label>Punto</label><select id="gx_u">${S.ubis.filter(u=>u.activa!==false).map(u=>`<option value="${u.id}">${esc(u.nombre)}</option>`).join('')}</select></div>
+  <div><label>Categoría</label><select id="gx_c">${['Combustible','Mantenimiento','Sueldos','Alquiler','Servicios','Impuestos','Peaje / estacionamiento','Comida','Otros'].map(c=>`<option>${c}</option>`).join('')}</select></div>
+  <div><label>Monto</label><input id="gx_m" type="number" inputmode="decimal"></div><div><label>Medio</label><select id="gx_t"><option value="efectivo">Efectivo (de la caja)</option><option value="transferencia">Transferencia</option></select></div>
+  <div><label>Nota</label><input id="gx_n"></div><div><button class="btn pri" data-a="gxn">REGISTRAR</button></div></div></div>
+  <div class="card tw"><h2>Gastos recientes <span class="mut" style="font-size:15px">· hoy ${money(hoyT)}</span></h2><table><tr><th>Fecha</th><th>Punto</th><th>Categoría</th><th class="r">Monto</th><th>Medio</th><th>Nota</th><th>Usuario</th><th></th></tr>
+  ${S.gastos.map(g=>`<tr><td>${fh(g.ts)}</td><td>${esc(g.ubicacionNombre||ubiN(g.ubicacionId))}</td><td>${esc(g.categoria)}</td><td class="r"><b>${money(g.monto)}</b></td><td>${esc(g.medio)}</td><td style="white-space:normal">${esc(g.nota||'')}</td><td>${esc(g.usuario)}</td>
+  <td>${g.estado==='ok'?`<button class="btn sm bad" data-a="gxx" data-id="${g.id}">Anular</button>`:'<span class="tag bad">ANULADO</span>'}</td></tr>`).join('')||'<tr><td colspan="8" class="mut">Sin gastos.</td></tr>'}</table></div></main>`;
+}
+let lastFocus=null;
+function render(){
+  const r=$('#root');if(!r)return;
+  const a=document.activeElement;if(a&&['INPUT','SELECT'].includes(a.tagName)&&r.contains(a))return; // no pisar lo que se está escribiendo
+  if(!S.user||!S.perfil){r.innerHTML=vLogin();return}
+  if(S.raven&&!S.tid){r.innerHTML=vRaven();return}
+  const v={resumen:vResumen,stock:vStock,ventas:vVentas,cajas:vCajas,cargas:vCargas,rendiciones:vRendiciones,revendedores:vRevendedores,compras:vCompras,proveedores:vProveedores,gastos:vGastos,historial:vHistorial,ajustes:vAjustes,catalogo:vCatalogo,puntos:vPuntos,usuarios:vUsuarios}[S.tab]||vResumen;
+  const y=window.scrollY;let body=v();if(['ventas','stock','compras','gastos','revendedores','proveedores','historial'].includes(S.tab))body=body.replace(/<\/main>\s*$/,`<div style="margin-top:6px"><button class="btn sm" data-a="csv" data-v="${S.tab}">⬇ Exportar CSV</button></div></main>`);r.innerHTML=head()+body;window.scrollTo(0,y);
+}
+
+/* ---------- eventos ---------- */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-a]');if(!el)return;const D=el.dataset;
+  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),crearDist:crearDistribuidora,
+    tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
+    tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
+    anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,
+    nmarca:nuevaMarca,tmarca:()=>toggleMarca(D.id,D.v==='1'),nubi:nuevaUbi,tubi:()=>toggleUbi(D.id,D.v==='1'),nusu:nuevoUsuario,tusu:()=>toggleUsuario(D.id,D.v==='1')};
+  if(A[D.a])A[D.a]();
+});
+document.addEventListener('change',e=>{if(e.target.id==='vf'&&e.target.value){S.fecha=e.target.value;subVentas();e.target.blur();render()}});
+document.addEventListener('focusout',()=>setTimeout(render,50));
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw'||e.target.id==='em'))login()});
+window.addEventListener('online',()=>{S.online=true;render()});window.addEventListener('offline',()=>{S.online=false;render()});
+let taps=0,tapT;document.addEventListener('click',e=>{if(!e.target.closest('#logo'))return;taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,3000);if(taps>=5){taps=0;if(prompt('PIN')===ADMIN_PIN)alert('GasAR panel '+VERSION+'\nUsuario: '+(S.user?S.user.uid:'-')+'\nNegocio: '+(S.tid||'-')+'\nEn línea: '+S.online)}});
+document.documentElement.dataset.theme=LS.get('tema','light');
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw-gasar-admin.js').catch(()=>{}));
+setTimeout(()=>{if(!S.user)hideSplash()},4000);
+</script>
+</body>
+</html>
