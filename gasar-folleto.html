@@ -1,8 +1,9 @@
 <!--
   GasAR · FOLLETO DIGITAL
-  Versión: 1.0.0
+  Versión: 1.1.0
   Fecha: 2026-10-06
   Changelog:
+   - 1.1.0: sin llama en la garrafa; precios de ejemplo con base $22.000 (10 kg), 33.000 (15 kg), 88.000 (40 kg).
    - 1.0.0: primer folleto para clientes (distribuidoras de gas). Mobile-first, ilustraciones SVG, sin imágenes externas.
   PENDIENTE:
    - Agregar número de WhatsApp comercial en el botón de contacto (hoy: mail)
@@ -45,8 +46,6 @@ h2{font-size:clamp(28px,6vw,44px);margin-bottom:14px}
 .cta-row{display:flex;flex-wrap:wrap;gap:12px}
 .hero-art{display:flex;justify-content:center;align-items:flex-end;gap:18px;min-height:320px}
 .garrafa{width:128px;filter:drop-shadow(0 18px 30px rgba(0,0,0,.45))}
-.flame{transform-origin:60px 52px;animation:flick 1.6s ease-in-out infinite alternate}
-@keyframes flick{from{transform:scale(1) rotate(-2deg)}to{transform:scale(1.12,1.2) rotate(3deg)}}
 /* TELÉFONO */
 .phone{width:230px;background:#05090E;border:3px solid #2a4157;border-radius:34px;padding:12px 8px 14px;box-shadow:0 24px 50px rgba(0,0,0,.5);flex:none}
 .phone .scr{background:#E8ECF0;color:#101A24;border-radius:24px;padding:14px 10px 12px;min-height:350px;font-size:12px}
@@ -118,7 +117,7 @@ footer{padding:30px 20px calc(env(safe-area-inset-bottom,0px) + 34px);text-align
 /* ANIMACIÓN */
 .rv{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease}
 .rv.on{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.flame{animation:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 @media (max-width:520px){.garrafa{width:84px}.hero-art{gap:12px}}
 @media (min-width:760px){
   section{padding:96px 0}
@@ -166,10 +165,8 @@ footer{padding:30px 20px calc(env(safe-area-inset-bottom,0px) + 34px);text-align
         <div class="cta-row"><a class="btn" href="mailto:rgaraventa@gmail.com?subject=Quiero%20probar%20GasAR">Quiero probarlo <svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn ghost" href="#como">Ver cómo funciona</a></div>
       </div>
       <div class="hero-art rv" aria-hidden="true">
-        <svg class="garrafa" viewBox="0 0 120 210">
-          <defs><linearGradient id="gc" x1="0" x2="1"><stop offset="0" stop-color="#2f78d8"/><stop offset=".5" stop-color="#5aa9ff"/><stop offset="1" stop-color="#1e5cb0"/></linearGradient>
-          <linearGradient id="gf" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff6a1a"/><stop offset="1" stop-color="#ffd27a"/></linearGradient></defs>
-          <g class="flame"><path d="M60 8c8 10 14 18 14 28a14 14 0 01-28 0c0-6 3-9 6-14 2 5 4 6 6 5-2-7 0-13 2-19z" fill="url(#gf)"/></g>
+        <svg class="garrafa" viewBox="0 34 120 176">
+          <defs><linearGradient id="gc" x1="0" x2="1"><stop offset="0" stop-color="#2f78d8"/><stop offset=".5" stop-color="#5aa9ff"/><stop offset="1" stop-color="#1e5cb0"/></linearGradient></defs>
           <rect x="52" y="46" width="16" height="14" rx="3" fill="#8fa6b8"/><rect x="44" y="40" width="32" height="8" rx="4" fill="#6c8396"/>
           <path d="M20 112c0-30 18-50 40-50s40 20 40 50v70c0 14-10 24-24 24H44c-14 0-24-10-24-24z" fill="url(#gc)"/>
           <rect x="20" y="112" width="80" height="44" fill="#0b3a74" opacity=".55"/>
@@ -180,12 +177,12 @@ footer{padding:30px 20px calc(env(safe-area-inset-bottom,0px) + 34px);text-align
         <div class="phone"><div class="scr">
           <div class="top"><span>GasAR</span><span>● En línea</span></div>
           <div class="pl">¿QUÉ GARRAFA?</div>
-          <div class="g3"><div class="pb sel">10 kg<small>$ 11.000</small></div><div class="pb">15 kg<small>$ 16.500</small></div><div class="pb">40 kg<small>$ 42.000</small></div></div>
+          <div class="g3"><div class="pb sel">10 kg<small>$ 22.000</small></div><div class="pb">15 kg<small>$ 33.000</small></div><div class="pb">40 kg<small>$ 88.000</small></div></div>
           <div class="pl">¿ENTREGA ENVASE VACÍO?</div>
           <div class="g2"><div class="pb sel">SÍ</div><div class="pb">NO</div></div>
           <div class="pl">¿CÓMO PAGA?</div>
           <div class="g3"><div class="pb sel">EFECTIVO</div><div class="pb">TRANSF.</div><div class="pb">QR</div></div>
-          <div style="height:12px"></div><div class="pb go">CONFIRMAR · $ 11.000</div>
+          <div style="height:12px"></div><div class="pb go">CONFIRMAR · $ 22.000</div>
         </div></div>
       </div>
     </div>
@@ -275,7 +272,7 @@ footer{padding:30px 20px calc(env(safe-area-inset-bottom,0px) + 34px);text-align
       <div style="height:6px"></div>
       <div class="kpi"><b>6 llenas · 2 vacías</b><span>40 kg</span></div>
       <div class="pl">CAJA ABIERTA</div>
-      <div class="g2"><div class="pb">VENTAS HOY<small>23</small></div><div class="pb">EFECTIVO<small>$ 187.500</small></div></div>
+      <div class="g2"><div class="pb">VENTAS HOY<small>23</small></div><div class="pb">EFECTIVO<small>$ 374.000</small></div></div>
       <div style="height:10px"></div><div class="pb sel">RENDIR CAMIONETA</div>
     </div></div>
   </div>
@@ -285,7 +282,7 @@ footer{padding:30px 20px calc(env(safe-area-inset-bottom,0px) + 34px);text-align
   <div class="wrap venta">
     <div class="phone rv" aria-hidden="true" style="order:2"><div class="scr">
       <div class="top"><span>Resumen</span><span>● hoy</span></div>
-      <div class="g2"><div class="kpi"><b>$ 1.284.500</b><span>Ventas de hoy</span></div><div class="kpi"><b>212</b><span>Garrafas llenas</span></div><div class="kpi"><b>96</b><span>Envases vacíos</span></div><div class="kpi"><b>3</b><span>Cajas abiertas</span></div></div>
+      <div class="g2"><div class="kpi"><b>$ 1.276.000</b><span>Ventas de hoy</span></div><div class="kpi"><b>212</b><span>Garrafas llenas</span></div><div class="kpi"><b>96</b><span>Envases vacíos</span></div><div class="kpi"><b>3</b><span>Cajas abiertas</span></div></div>
       <div class="bars"><i style="height:45%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:65%"></i><i style="height:80%"></i></div>
       <div class="alert">⚠ Rendición pendiente: Camioneta 1</div>
       <div class="alert" style="background:#fde3e0;color:#B42318">Stock bajo: 15 kg en la central</div>
