@@ -1,8 +1,9 @@
 <!--
   GasAR · PANEL DE ADMINISTRACIÓN
-  Versión: 1.3.0-etapa4
+  Versión: 1.3.1-etapa4
   Fecha: 2026-10-02
   Changelog:
+   - 1.3.1: el ingreso con Google ahora explica el error (dominio no autorizado, proveedor sin habilitar, etc.) y reintenta por redirección si el celular bloquea la ventana.
    - 1.3.0-etapa4: COMPRAS (proveedor, líneas con marca, canje de vacíos, pago mixto, comprobante; suman stock a la central
      y descuentan la caja), PROVEEDORES (cuenta corriente: lo que se les debe, pagos), GASTOS (de cualquier punto, con anulación),
      dinero real por caja abierta en el Resumen, movimientos de caja, exportación a CSV (ventas, stock, compras, gastos,
@@ -84,7 +85,7 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.3.0-etapa4';
+const VERSION='1.3.1-etapa4';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='2580';
 
@@ -197,7 +198,17 @@ async function login(){
   $('#splash').classList.remove('off');
   try{await auth.signInWithEmailAndPassword(e,p)}catch(x){hideSplash();toast('Mail o clave incorrectos',true)}
 }
-async function loginGoogle(){try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){toast('No se pudo ingresar con Google',true)}}
+async function loginGoogle(){
+  const prov=new firebase.auth.GoogleAuthProvider();
+  try{await auth.signInWithPopup(prov)}
+  catch(e){
+    console.error('google',e);
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){try{await auth.signInWithRedirect(prov);return}catch(x){e=x}}
+    const msg={'auth/unauthorized-domain':'Falta autorizar el dominio raventechs.github.io en Firebase (Authentication → Configuración → Dominios autorizados)','auth/operation-not-allowed':'Falta habilitar Google en Firebase (Authentication → Sign-in method)','auth/popup-closed-by-user':'Cerraste la ventana de Google antes de terminar','auth/cancelled-popup-request':'Se canceló la ventana de Google, probá de nuevo','auth/network-request-failed':'Sin conexión, probá de nuevo'}[e.code];
+    toast(msg||('No se pudo ingresar con Google ('+(e.code||'error')+')'),true);
+    const d=document.getElementById('gerr');if(d)d.textContent=(msg||'Error')+' · '+(e.code||'')
+  }
+}
 
 function guardarProducto(id){
   const b=db.batch(),r=T().collection('productos').doc(id);
@@ -471,7 +482,7 @@ function gxAnular(id){
 /* ---------- vistas ---------- */
 function vLogin(){return `<div class="login card"><h1 class="logo" id="logo" style="font-size:36px">GasAR</h1><p class="mut">Panel de administración</p>
 <label>Mail</label><input id="em" type="email" autocomplete="username"><div style="height:8px"></div><label>Clave</label><input id="pw" type="password" autocomplete="current-password">
-<div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button></div>`}
+<div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button><p id="gerr" class="bad" style="font-size:14px;margin-top:10px"></p></div>`}
 function vRaven(){
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">Modo Raven</span><button class="ico" data-a="salir">Salir</button></div></header><main>
   <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.plan||'')}</span></span><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
