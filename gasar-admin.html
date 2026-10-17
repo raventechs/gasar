@@ -1,8 +1,9 @@
 <!--
   GasAR · PANEL DE ADMINISTRACIÓN
-  Versión: 1.3.1-etapa4
-  Fecha: 2026-10-02
+  Versión: 1.4.0-practica
+  Fecha: 2026-10-13
   Changelog:
+   - 1.4.0-practica: MODO PRÁCTICA. Desde Modo Raven se crea una distribuidora de mentira ya armada (precios $22.000/$33.000/$88.000, marcas, stock, 2 camionetas, reventa, 2 revendedores y 3 usuarios de prueba con clave 123456) y una guía de 10 pasos con tildes dentro del Resumen. Nada se borra: para empezar de cero se crea otra práctica.
    - 1.3.1: el ingreso con Google ahora explica el error (dominio no autorizado, proveedor sin habilitar, etc.) y reintenta por redirección si el celular bloquea la ventana.
    - 1.3.0-etapa4: COMPRAS (proveedor, líneas con marca, canje de vacíos, pago mixto, comprobante; suman stock a la central
      y descuentan la caja), PROVEEDORES (cuenta corriente: lo que se les debe, pagos), GASTOS (de cualquier punto, con anulación),
@@ -85,7 +86,7 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.3.1-etapa4';
+const VERSION='1.4.0-practica';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='2580';
 
@@ -296,6 +297,65 @@ async function crearDistribuidora(){
   catch(x){console.error(x);toast('No se pudo crear ('+(x.code||'error')+')',true)}
 }
 
+/* ---------- Modo Práctica ---------- */
+const PRACTICA_CLAVE='123456';
+const PRACTICA_PASOS=[
+ ['Mirá el Stock','Pestaña Stock: la Central tiene garrafas llenas y vacías por marca.'],
+ ['Entrá como vendedor de la Central','Abrí gasar-vendedor.html con el usuario de Central (abajo). Abrí la caja con un fondo de $10.000.'],
+ ['Vendé 2 garrafas de 10 kg','Pagando en efectivo y entregando 2 envases vacíos. Total esperado: $44.000.'],
+ ['Vendé 1 garrafa SIN devolver envase','El sistema te cobra además el envase. Mirá cómo cambia el total.'],
+ ['Cargá la Camioneta 1 desde el panel','Pestaña Cargas: mandá 20 garrafas de 10 kg. Queda "en tránsito".'],
+ ['Entrá como chofer y recibí la carga','Usuario Camioneta 1: Recibir carga. Si contás menos, queda marcada la diferencia.'],
+ ['Vendé desde la camioneta y rendí','Hacé 3 ventas y tocá Rendir. La rendición es ciega: contás sin ver lo esperado.'],
+ ['Aprobá la rendición en el panel','Pestaña Rendiciones: mirá diferencias y aprobá. Todo vuelve a la Central.'],
+ ['Vendele a un revendedor a cuenta','Usuario Revendedores: vendé 10 garrafas a Kiosco Don Pepe, pagando la mitad. El resto queda en su cuenta corriente.'],
+ ['Cobrale y mirá el Resumen','Registrá un cobro. Volvé al Resumen: ventas, caja real y deudas deben cerrar.']];
+function pasoTilde(i){
+  const t=S.tenant||{},h=Object.assign({},t.pasosHechos||{});h[i]=!h[i];
+  db.collection('tenants').doc(S.tid).set({pasosHechos:h},{merge:true}).catch(e=>toast('No se pudo guardar ('+(e.code||'error')+')',true));
+}
+function vGuiaPractica(){
+  const t=S.tenant||{};if(!t.practica)return '';
+  const h=t.pasosHechos||{},n=PRACTICA_PASOS.filter((_,i)=>h[i]).length,u=t.usuariosPractica||[];
+  return `<div class="card"><h2>MODO PRÁCTICA · ${n}/10 pasos</h2><p class="mut" style="font-size:15px">Datos de mentira. Nada de esto es real. Si querés empezar de cero, creá otra práctica desde Distribuidoras.</p>
+  <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><b>Usuarios de prueba (clave ${PRACTICA_CLAVE})</b>${u.map(x=>`<span style="font-size:15px">${esc(x.rol)}: <b>${esc(x.email)}</b></span>`).join('')}</div>
+  ${PRACTICA_PASOS.map((p,i)=>`<div class="row" style="align-items:flex-start;gap:10px"><button class="btn sm ${h[i]?'pri':''}" data-a="pasoTilde" data-v="${i}" style="min-width:44px">${h[i]?'✓':(i+1)}</button><span style="white-space:normal"><b>${esc(p[0])}</b><br><span class="mut" style="font-size:14px">${esc(p[1])}</span></span></div>`).join('')}</div>`;
+}
+async function crearPractica(){
+  if(!confirm('Se crea una distribuidora de práctica con datos de mentira. ¿Seguir?'))return;
+  $('#splash').classList.remove('off');
+  const tid=db.collection('tenants').doc().id,k=tid.slice(0,4).toLowerCase(),prev=S.tid;S.tid=tid;
+  try{
+    const t=db.collection('tenants').doc(tid),b=db.batch(),ids={};
+    const f=new Date(),fs=f.getDate()+'/'+(f.getMonth()+1);
+    b.set(t,{nombre:'PRÁCTICA · Distribuidora Demo '+fs,plan:'practica',practica:true,limiteCamionetas:3,limiteUsuarios:10,creadoTs:TS.now(),pasosHechos:{}});
+    const prods=[[10,'Garrafa 10 kg',22000,12000,20],[15,'Garrafa 15 kg',33000,18000,10],[40,'Garrafa 40 kg',88000,40000,5]];
+    prods.forEach(([kg,nom,pr,pe,min])=>{const id=nid();ids[kg]=id;b.set(t.collection('productos').doc(id),{nombre:nom,kg,precio:pr,precioEnvase:pe,stockMinimo:min,activo:true,orden:kg})});
+    const mA=nid(),mB=nid();b.set(t.collection('marcas').doc(mA),{nombre:'YPF',activa:true});b.set(t.collection('marcas').doc(mB),{nombre:'Mastergas',activa:true});
+    const uc=nid(),u1=nid(),u2=nid(),ur=nid();
+    b.set(t.collection('ubicaciones').doc(uc),{nombre:'Central',tipo:'central',activa:true,creadaTs:TS.now()});
+    b.set(t.collection('ubicaciones').doc(u1),{nombre:'Camioneta 1',tipo:'camioneta',activa:true,creadaTs:TS.now()});
+    b.set(t.collection('ubicaciones').doc(u2),{nombre:'Camioneta 2',tipo:'camioneta',activa:true,creadaTs:TS.now()});
+    b.set(t.collection('ubicaciones').doc(ur),{nombre:'Reventa',tipo:'revendedores',activa:true,creadaTs:TS.now()});
+    // stock inicial en Central
+    [[10,mA,60,'lleno'],[10,mB,40,'lleno'],[15,mA,20,'lleno'],[40,mA,10,'lleno'],[10,mA,20,'vacio'],[10,mB,10,'vacio'],[15,mA,6,'vacio'],[40,mA,3,'vacio']]
+      .forEach(([kg,m,c,tp])=>ajusteStock(b,uc,ids[kg],m,tp,c,'stock_inicial_practica'));
+    b.set(t.collection('revendedores').doc(nid()),{nombre:'Kiosco Don Pepe',telefono:'11 5555-0001',plazoDias:7,limiteCredito:500000,activo:true,creadoTs:TS.now()});
+    b.set(t.collection('revendedores').doc(nid()),{nombre:'Almacén La Esquina',telefono:'11 5555-0002',plazoDias:15,limiteCredito:300000,activo:true,creadoTs:TS.now()});
+    audit(b,'crear_practica','Distribuidora de práctica creada');
+    await b.commit();
+    const us=[['vendedor_central','Vendedor Central','Central',uc,'central'],['vendedor_camioneta','Chofer Camioneta 1','Camioneta 1',u1,'camioneta1'],['vendedor_revendedores','Vendedor Revendedores','Reventa',ur,'reventa']],lista=[];
+    for(const [rol,nom,pn,ubi,tag] of us){
+      const email=tag+'.'+k+'@practica.gasar';
+      await crearUsuarioAuth(email,PRACTICA_CLAVE,{tenantId:tid,nombre:nom,rol,ubicacionId:ubi});
+      lista.push({rol:pn,email});
+    }
+    await t.set({usuariosPractica:lista},{merge:true});
+    toast('Práctica creada. Seguí la guía del Resumen.');entrarTenant(tid);
+  }catch(x){console.error(x);S.tid=prev;toast('No se pudo crear la práctica ('+(x.code||'error')+')',true)}
+  hideSplash();
+}
+
 /* ---------- Etapa 2: cargas y rendiciones ---------- */
 function cgAgregar(){
   const pid=val('cg_p'),mid=val('cg_m'),c=Math.round(num('cg_c')||0);
@@ -485,11 +545,13 @@ function vLogin(){return `<div class="login card"><h1 class="logo" id="logo" sty
 <div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button><p id="gerr" class="bad" style="font-size:14px;margin-top:10px"></p></div>`}
 function vRaven(){
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">Modo Raven</span><button class="ico" data-a="salir">Salir</button></div></header><main>
-  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.plan||'')}</span></span><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
+  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.practica?'PRÁCTICA':(t.plan||''))}</span></span><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
   <div class="card"><h2>Crear distribuidora nueva</h2><div class="f">
   <div><label>Nombre de la distribuidora</label><input id="dn_n"></div><div><label>Nombre del dueño</label><input id="dn_a"></div>
   <div><label>Mail del dueño</label><input id="dn_e" type="email"></div><div><label>Clave inicial</label><input id="dn_p" type="password"></div></div>
-  <div style="height:12px"></div><button class="btn pri" data-a="crearDist">CREAR</button><p class="mut" style="font-size:14px">Se crean los productos de 10, 15 y 40 kg (con precio 0) y el punto Central.</p></div></main>`;
+  <div style="height:12px"></div><button class="btn pri" data-a="crearDist">CREAR</button><p class="mut" style="font-size:14px">Se crean los productos de 10, 15 y 40 kg (con precio 0) y el punto Central.</p></div>
+  <div class="card"><h2>Modo Práctica</h2><p class="mut" style="font-size:15px">Crea una distribuidora de mentira ya armada, con precios, stock, camionetas, revendedores y usuarios de prueba, más una guía de 10 pasos para probar todo. Sirve para aprender y para mostrar el sistema.</p>
+  <div style="height:10px"></div><button class="btn pri" data-a="crearPractica">CREAR DISTRIBUIDORA DE PRÁCTICA</button></div></main>`;
 }
 const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios']];
 function head(){
@@ -521,7 +583,7 @@ function vResumen(){
   const vencidos=deudores.filter(x=>x.di.venc>0);if(vencidos.length)al.push(`<div class="alert b">Cuentas vencidas: ${vencidos.map(x=>esc(x.r.nombre)+' '+money(x.di.venc)).join(' · ')}</div>`);
   const dif=ok.filter(v=>v.conDiferencia).length;if(dif)al.push(`<div class="alert">${dif} venta(s) de ${esc(S.fecha)} se hicieron sin stock registrado. Revisá la pestaña Ventas.</div>`);
   const cuenta=o=>Object.keys(o).length?'':'<p class="mut">Sin datos todavía.</p>';
-  return `<main>${al.join('')}<div class="grid cards">
+  return `<main>${vGuiaPractica()}${al.join('')}<div class="grid cards">
   <div class="card kpi"><span class="mut">Ventas de ${esc(S.fecha===hoy()?'hoy':S.fecha)}</span><span class="num">${money(tot)}</span><span class="mut">${ok.length} ventas</span></div>
   <div class="card kpi"><span class="mut">Garrafas llenas (total)</span><span class="num">${ll}</span></div>
   <div class="card kpi"><span class="mut">Envases vacíos (total)</span><span class="num">${va}</span></div>
@@ -721,7 +783,7 @@ function render(){
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const D=el.dataset;
-  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),crearDist:crearDistribuidora,
+  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),crearDist:crearDistribuidora,crearPractica,pasoTilde:()=>pasoTilde(+D.v),
     tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
     tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
     anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,

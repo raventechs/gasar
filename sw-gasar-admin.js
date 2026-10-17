@@ -1,5 +1,5 @@
 /* GasAR admin · Service Worker · v1.3.0-etapa4 */
-const CACHE='gasar-admin-v4';
+const CACHE='gasar-admin-v5';
 const SHELL=['./gasar-admin.html','./manifest-gasar-admin.webmanifest','./icon-gasar-192.png','./icon-gasar-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});

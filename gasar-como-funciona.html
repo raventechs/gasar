@@ -1,0 +1,167 @@
+<!--
+  GasAR · MAPA DE FUNCIONAMIENTO
+  Versión: 1.0.0
+  Fecha: 2026-10-09
+  Changelog:
+   - 1.0.0: mapa visual del sistema (flujo de garrafas, envases y plata) + ejemplo de un día con $22.000 por garrafa de 10 kg
+  PENDIENTE:
+   - Capturas reales de la app cuando haya una distribuidora cargada
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A141D">
+<title>GasAR · Cómo funciona</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A141D;--card:#12212D;--line:#223A4E;--ink:#EAF2F8;--mut:#9BB0C1;--blue:#4C9BFF;--flame:#FF8A3D;--ok:#3DD68C;--vio:#C79BFF;--r:20px}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:17px;line-height:1.55;overflow-x:hidden}
+h1,h2,h3{font-family:'Space Grotesk','Inter',sans-serif;line-height:1.12}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px}
+header{padding:calc(env(safe-area-inset-top,0px) + 30px) 0 10px}
+.kicker{color:var(--flame);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase}
+h1{font-size:clamp(30px,7vw,48px);margin:8px 0 10px}
+h2{font-size:clamp(23px,5vw,32px);margin:0 0 8px}
+.lead{color:var(--mut)}
+section{padding:34px 0}
+.leg{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 6px;font-size:14px;color:var(--mut)}
+.leg i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.diag{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-top:10px;overflow-x:auto}
+svg{width:100%;min-width:640px;height:auto;display:block}
+svg text{font-family:'Inter',sans-serif;fill:#EAF2F8}
+.nd rect{fill:#183042;stroke:#2c4d68;stroke-width:1.5}
+.nd .t{font-weight:700;font-size:15px}.nd .s{font-size:11.5px;fill:#9BB0C1}
+.flow{fill:none;stroke-width:3;stroke-linecap:round;stroke-dasharray:7 7;animation:dash 1.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-14}}
+.lb{font-size:11.5px;font-weight:600}
+@media (prefers-reduced-motion:reduce){.flow{animation:none}}
+.steps{display:grid;gap:12px;margin-top:16px}
+.st{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;gap:14px}
+.st .n{width:38px;height:38px;border-radius:50%;background:var(--flame);color:#1A0B00;font-weight:700;font-family:'Space Grotesk';display:grid;place-items:center;flex:none}
+.st h3{font-size:18px;margin-bottom:2px}.st p{color:var(--mut);font-size:15px}
+.eff{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.eff span{font-size:13px;font-weight:600;border-radius:99px;padding:3px 10px;background:#0d2236;border:1px solid var(--line)}
+.eff .m{color:var(--flame)}.eff .p{color:var(--ok)}.eff .b{color:var(--blue)}
+.tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-top:14px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:13px}
+tr:last-child td{border-bottom:0}
+.g{color:var(--ok)}.r{color:#ff7b6e}
+.roles{display:grid;gap:12px;margin-top:14px}
+.rl{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.rl b{font-family:'Space Grotesk';font-size:18px;display:block;margin-bottom:6px}
+.rl ul{list-style:none;padding:0;display:grid;gap:4px;color:var(--mut);font-size:15px}
+.rl li::before{content:"✓ ";color:var(--ok)}
+.tst{background:linear-gradient(140deg,#17406e,#0c2238);border:1px solid var(--line);border-radius:24px;padding:22px;margin-top:14px}
+.tst .big{font-family:'Space Grotesk';font-size:44px;color:var(--ok);font-weight:700}
+.tst ul{list-style:none;padding:0;margin-top:10px;display:grid;gap:5px;font-size:15px}
+.tst li::before{content:"✓ ";color:var(--ok)}
+footer{padding:26px 18px calc(env(safe-area-inset-bottom,0px) + 30px);text-align:center;color:var(--mut);font-size:14px}
+@media(min-width:760px){.steps{grid-template-columns:1fr 1fr}.roles{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <span class="kicker">GasAR · mapa del sistema</span>
+  <h1>Cómo se mueve todo, de un vistazo</h1>
+  <p class="lead">Una sola base de datos. Cada operación se carga una vez, donde ocurre, y el resto se actualiza solo.</p>
+</header>
+
+<section>
+  <h2>1. El recorrido de garrafas y plata</h2>
+  <p class="lead">Las flechas muestran qué se mueve entre cada punto. En el celular, deslizá el gráfico hacia los costados.</p>
+  <div class="leg"><span><i style="background:#4C9BFF"></i>Garrafas llenas</span><span><i style="background:#FF8A3D"></i>Envases vacíos</span><span><i style="background:#3DD68C"></i>Plata</span></div>
+  <div class="diag">
+  <svg viewBox="0 0 720 470" role="img" aria-label="Diagrama: proveedor, central, camionetas, revendedores y administración conectados por flujos de garrafas llenas, envases vacíos y plata">
+    <!-- nodos -->
+    <g class="nd"><rect x="20" y="30" width="150" height="62" rx="14"/><text class="t" x="95" y="58" text-anchor="middle">PROVEEDOR</text><text class="s" x="95" y="77" text-anchor="middle">le comprás las llenas</text></g>
+    <g class="nd"><rect x="285" y="30" width="150" height="62" rx="14" style="stroke:#4C9BFF"/><text class="t" x="360" y="58" text-anchor="middle">CENTRAL</text><text class="s" x="360" y="77" text-anchor="middle">depósito + mostrador</text></g>
+    <g class="nd"><rect x="550" y="30" width="150" height="62" rx="14"/><text class="t" x="625" y="58" text-anchor="middle">CLIENTE FINAL</text><text class="s" x="625" y="77" text-anchor="middle">en el mostrador</text></g>
+    <g class="nd"><rect x="150" y="190" width="170" height="62" rx="14"/><text class="t" x="235" y="218" text-anchor="middle">CAMIONETAS</text><text class="s" x="235" y="237" text-anchor="middle">stock + caja propios</text></g>
+    <g class="nd"><rect x="400" y="190" width="170" height="62" rx="14"/><text class="t" x="485" y="218" text-anchor="middle">REVENDEDORES</text><text class="s" x="485" y="237" text-anchor="middle">cuenta corriente</text></g>
+    <g class="nd"><rect x="150" y="320" width="170" height="52" rx="14"/><text class="t" x="235" y="351" text-anchor="middle">CLIENTES EN LA CALLE</text></g>
+    <g class="nd"><rect x="150" y="410" width="420" height="48" rx="14" style="stroke:#C79BFF"/><text class="t" x="360" y="440" text-anchor="middle" style="fill:#C79BFF">ADMINISTRACIÓN · ve todo en tiempo real</text></g>
+    <!-- flujos -->
+    <path class="flow" d="M170 52 H285" stroke="#4C9BFF"/><text class="lb" x="227" y="44" text-anchor="middle" style="fill:#4C9BFF">llenas</text>
+    <path class="flow" d="M285 74 H170" stroke="#FF8A3D"/><text class="lb" x="227" y="90" text-anchor="middle" style="fill:#FF8A3D">canje vacíos</text>
+    <path class="flow" d="M435 52 H550" stroke="#4C9BFF"/>
+    <path class="flow" d="M550 74 H435" stroke="#3DD68C"/><text class="lb" x="493" y="90" text-anchor="middle" style="fill:#3DD68C">$ + vacíos</text>
+    <path class="flow" d="M330 92 V150 H260 V190" stroke="#4C9BFF"/><text class="lb" x="262" y="142" text-anchor="end" style="fill:#4C9BFF">CARGAR CAMIONETA</text>
+    <path class="flow" d="M390 92 V150 H470 V190" stroke="#4C9BFF"/><text class="lb" x="474" y="142" style="fill:#4C9BFF">vende al por mayor</text>
+    <path class="flow" d="M205 252 V320" stroke="#4C9BFF"/>
+    <path class="flow" d="M265 320 V252" stroke="#3DD68C"/><text class="lb" x="275" y="292" style="fill:#3DD68C">$</text>
+    <path class="flow" d="M570 221 H660" stroke="#3DD68C"/><text class="lb" x="615" y="212" text-anchor="middle" style="fill:#3DD68C">paga o</text><text class="lb" x="615" y="236" text-anchor="middle" style="fill:#3DD68C">queda a cuenta</text>
+    <path class="flow" d="M300 190 V168 H352 V92" stroke="#FF8A3D"/><text class="lb" x="358" y="182" style="fill:#FF8A3D">RENDIR (vuelve lo que sobró)</text>
+    <path class="flow" d="M360 372 V410" stroke="#C79BFF"/>
+  </svg>
+  </div>
+  <p class="lead" style="margin-top:10px;font-size:15px">Cuando la camioneta vuelve, <b>RENDIR CAMIONETA</b> devuelve a la central lo que sobró (llenas y vacías) y la plata. Administración compara contra lo esperado.</p>
+</section>
+
+<section>
+  <h2>2. Qué pasa cuando alguien toca CONFIRMAR</h2>
+  <p class="lead">Ejemplo: garrafa de 10 kg a $22.000, el cliente entrega un envase vacío y paga en efectivo.</p>
+  <div class="steps">
+    <div class="st"><div class="n">1</div><div><h3>El vendedor toca 4 botones</h3><p>10 kg → Sí entrega envase → Efectivo → CONFIRMAR.</p></div></div>
+    <div class="st"><div class="n">2</div><div><h3>El sistema registra todo junto</h3><p>Usuario, hora y punto de venta quedan anotados.</p><div class="eff"><span class="b">−1 llena</span><span class="m">+1 vacía</span><span class="p">+$22.000 en caja</span></div></div></div>
+    <div class="st"><div class="n">3</div><div><h3>Sin internet, igual vende</h3><p>Queda guardada en el celular y sube sola al volver la señal, sin duplicarse.</p></div></div>
+    <div class="st"><div class="n">4</div><div><h3>El dueño lo ve al instante</h3><p>Ventas, stock, caja y diferencias se actualizan en su panel.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>3. Un día de ejemplo con cuentas</h2>
+  <p class="lead">Garrafa de 10 kg a $22.000. Así se mueve el stock durante el día.</p>
+  <div class="tbl"><table>
+    <tr><th>Momento</th><th>Central llenas</th><th>Central vacías</th><th>Camioneta llenas</th><th>Camioneta vacías</th></tr>
+    <tr><td>Arranca el día</td><td>100</td><td>20</td><td>0</td><td>0</td></tr>
+    <tr><td>Carga camioneta (10)</td><td class="r">90</td><td>20</td><td class="g">10</td><td>0</td></tr>
+    <tr><td>Camioneta vende 8 con envase</td><td>90</td><td>20</td><td class="r">2</td><td class="g">8</td></tr>
+    <tr><td>Central vende 5 con envase</td><td class="r">85</td><td class="g">25</td><td>2</td><td>8</td></tr>
+    <tr><td>Camioneta rinde</td><td class="g">87</td><td class="g">33</td><td>0</td><td>0</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Plata del día</th><th>Cuenta</th><th>Importe</th></tr>
+    <tr><td>Camioneta (8 ventas)</td><td>8 × $22.000</td><td class="g">$176.000</td></tr>
+    <tr><td>Central (5 ventas)</td><td>5 × $22.000</td><td class="g">$110.000</td></tr>
+    <tr><td><b>Total vendido</b></td><td>13 × $22.000</td><td class="g"><b>$286.000</b></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>4. Quién ve qué</h2>
+  <div class="roles">
+    <div class="rl"><b style="color:#4C9BFF">Dueño / Administración</b><ul><li>Todo en tiempo real</li><li>Compras, gastos, precios</li><li>Aprueba rendiciones</li><li>Reportes en Excel</li></ul></div>
+    <div class="rl"><b style="color:#9be25a">Mostrador y revendedores</b><ul><li>Nueva venta</li><li>Cargar camionetas</li><li>Cobrar y recibir envases</li><li>Abrir y cerrar caja</li></ul></div>
+    <div class="rl"><b style="color:#FF8A3D">Chofer</b><ul><li>Recibir la carga</li><li>Vender (con o sin señal)</li><li>Anotar gastos</li><li>Rendir camioneta</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>5. Prueba de funcionamiento</h2>
+  <div class="tst">
+    <div class="big">27 / 27</div>
+    <div>comprobaciones correctas en una simulación completa del sistema</div>
+    <ul>
+      <li>Venta en mostrador: stock, envases y caja</li>
+      <li>Carga de camioneta en tránsito y recepción con diferencia</li>
+      <li>Rendición a ciegas, diferencias y aprobación</li>
+      <li>Revendedores: crédito, pago mixto, envases adeudados</li>
+      <li>Compras a proveedor y anulaciones con historial</li>
+      <li>Todas las pantallas sin errores de código</li>
+    </ul>
+    <p class="lead" style="margin-top:12px;font-size:14px">Es una simulación. La prueba real con Firebase y celulares la hacemos juntos.</p>
+  </div>
+</section>
+</div>
+<footer>GasAR · un sistema de <b>RavenTechs</b> · +54 9 11 3654-7592 · raventechsinfo@gmail.com</footer>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!--
+  RAVENTECHS · TABLERO MAESTRO
+  Versión: 1.1.0
+  Fecha: 2026-10-17
+  Changelog:
+   - 1.1.0: enlace directo a cada app, estado del Modo Práctica por app y estructura de la empresa de ejemplo (desplegable).
+   - 1.0.0: una tarjeta por app con estado y un único próximo paso; foco de la semana (máx. 3); filtros; todo editable y guardado en el celular.
+  PENDIENTE:
+   - Los estados salen de lo anotado hasta octubre: revisar y corregir con el lápiz de cada tarjeta.
+   - Guardado solo en este navegador (si cambiás de celular hay que volver a marcar el foco).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>RavenTechs · Tablero</title>
+<style>
+:root{--bg:#0b1220;--card:#131c2e;--ln:#24324d;--tx:#eaf0fb;--mut:#93a3c0;--ac:#4da3ff;--v:#37c47a;--a:#f2b84b;--az:#4da3ff;--r:#ff6b6b}
+@media (prefers-color-scheme:light){:root{--bg:#f2f5fa;--card:#fff;--ln:#d9e1ee;--tx:#14213a;--mut:#5b6b88;--ac:#0a57c8;--v:#14935a;--a:#b9790a;--az:#0a57c8;--r:#c93a3a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;max-width:900px;margin:auto}
+h1{font-size:24px;margin:8px 0 2px}h2{font-size:15px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 8px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:15px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.chip{border:1px solid var(--ln);background:var(--card);color:var(--tx);padding:9px 14px;border-radius:999px;font-size:15px;cursor:pointer}
+.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;border-left-width:6px}
+.card.verde{border-left-color:var(--v)}.card.amarillo{border-left-color:var(--a)}.card.azul{border-left-color:var(--az)}.card.rojo{border-left-color:var(--r)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.nom{font-size:20px;font-weight:700}.que{color:var(--mut);font-size:14px}
+.est{font-size:13px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.verde .est{color:var(--v)}.amarillo .est{color:var(--a)}.azul .est{color:var(--az)}.rojo .est{color:var(--r)}
+.paso{background:rgba(77,163,255,.1);border-radius:10px;padding:10px;font-size:15px}.paso b{display:block;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.acc{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.btn{border:1px solid var(--ln);background:transparent;color:var(--tx);padding:9px 12px;border-radius:10px;font-size:14px;cursor:pointer;text-decoration:none;min-height:40px;display:inline-flex;align-items:center}
+.btn.star.on{background:var(--a);border-color:var(--a);color:#000;font-weight:700}
+.foco .card{border-color:var(--a)}
+.vacio{color:var(--mut);padding:14px;border:1px dashed var(--ln);border-radius:12px;font-size:15px}
+textarea,select{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:8px;padding:8px;font:inherit}
+details{font-size:14px}summary{cursor:pointer;color:var(--ac);padding:6px 0}pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:10px;font:13px/1.5 ui-monospace,Menlo,monospace;margin:6px 0}.pr{font-size:14px}.pr.off{color:var(--mut)}
+footer{color:var(--mut);font-size:13px;margin:26px 0}
+</style>
+</head>
+<body>
+<h1>RavenTechs · Tablero</h1>
+<p class="sub">Todas tus apps en una pantalla. Una tarjeta por app, un solo próximo paso. Tocá ★ para poner hasta 3 apps como <b>foco de la semana</b>.</p>
+<div class="chips" id="fl"></div>
+<h2>⭐ Foco de la semana</h2><div class="grid foco" id="foco"></div>
+<h2>Todas las apps</h2><div class="grid" id="all"></div>
+<footer>Estados según lo anotado hasta octubre de 2026. Tocá ✎ para corregir estado o próximo paso; se guarda en este celular.</footer>
+<script>
+const EST={verde:'Con clientes',amarillo:'Para vender/probar',azul:'En desarrollo',rojo:'Urgente'};
+const APPS=[
+{id:'gasar',pr:"listo",u:"Panel admin → Modo Raven → CREAR DISTRIBUIDORA DE PRÁCTICA",st:["👤 Dueño/Administración (panel admin)", "├ 🏭 Central: mostrador y depósito (100 garrafas de 10 kg, 20 de 15 kg, 10 de 40 kg, más vacíos)", "├ 🚚 Camioneta 1 y Camioneta 2: stock y caja propios, rinden al volver", "└ 🏪 Reventa → Kiosco Don Pepe (crédito $500.000) y Almacén La Esquina ($300.000)", "💲 Garrafa 10 kg $22.000 · 15 kg $33.000 · 40 kg $88.000"],n:'GasAR',q:'Distribuidora de gas: central, camionetas, revendedores',e:'amarillo',p:'Activar Authentication en Firebase, crear la distribuidora de PRÁCTICA y tildar los 10 pasos.',l:'https://raventechs.github.io/gasar/gasar-admin.html'},
+{id:'mtc',n:'MTC',q:'App con API key expuesta (auditoría 8/7)',e:'rojo',p:'Sacar la API key del cliente con un proxy en Netlify Functions.'},
+{id:'carnear',pr:"listo",u:"Config → 🎓 Modo Práctica (necesita plan Full para ver las sucursales)",st:["👤 Dueño (dashboard con todas las sucursales)", "├ 🥩 Principal", "├ 🥩 Carnicería Centro · cajero por link de WhatsApp", "├ 🥩 Sucursal Norte · cajero por link de WhatsApp", "└ 🥩 Sucursal Sur · cajero por link de WhatsApp", "📊 ~670 ventas en 7 días, ticket promedio ~$68.000, gastos y 3 proveedores"],n:'CarneAR',q:'Caja para carnicerías, multi-sucursal',e:'verde',p:'Pasar peso libre y login anónimo de la beta a producción; después el módulo de demo con vencimiento.',l:'https://carnear.raventechsapp.com'},
+{id:'comprazona',n:'CompraZona',q:'Marketplace de garrafas y agua (La Matanza)',e:'amarillo',p:'Publicar reglas v0.2, activar App Check y salir a conseguir las primeras garraferas.',l:'https://comprazona.raventechsapp.com'},
+{id:'embudo',n:'Embudo de demos',q:'Qué pasa después de que alguien pide un demo',e:'azul',p:'Hacer la landing de entrega genérica para las 10 apps.'},
+{id:'trial',n:'Módulo demo/vencimiento',q:'Período de prueba reutilizable',e:'azul',p:'Esperar a que CarneAR tenga peso libre y login anónimo; recién ahí integrarlo.'},
+{id:'panel',n:'Panel RavenTechs',q:'Clientes y cobranza de todas las apps',e:'azul',p:'Crear el proyecto Firebase raventechs-admin y pegar su config.'},
+{id:'centralbot',n:'CentralbotAr',q:'Chatbot de WhatsApp multi-cliente',e:'azul',p:'Renovar el token de Meta (vence cada 24 h) y hacer la pantalla "Mi equipo".'},
+{id:'rodix',n:'Rodix',q:'Gestión de flota de vehículos',e:'verde',p:'Sin pendientes: está andando con cliente real.',l:'https://raventechs.github.io/vehigest-ar/'},
+{id:'miagenda',n:'MiAgenda',q:'Agenda grupal',e:'verde',p:'Agregar el botón "Eliminar usuario".',l:'https://raventechs.github.io/miagenda/'},
+{id:'securepro',n:'SecuroPro',q:'CRM para instaladores de seguridad (el tuyo)',e:'verde',p:'Probar el banner de instalación en un celular limpio.',l:'https://raventechs.github.io/securepro/'},
+{id:'saludar',n:'SaludAR',q:'Recordatorios de medicación con push',e:'amarillo',p:'Confirmar que llega una sola notificación a la hora correcta con la app instalada.',l:'https://raventechs.github.io/saludar/'},
+{id:'pizzar',pr:"listo",u:"Configuración → 🎓 Modo Práctica",st:["👤 Dueño + cajero (1 local)", "Módulos plus: stock, empleados, gastos, comandas de cocina", "💲 Muzzarella grande $13.000 (chica $6.900, mediana $9.900)", "📊 ~400 ventas en 14 días, ticket ~$29.000", "ℹ️ Hoy no tiene varias sucursales: es un local. Si querés varias islas hay que construirlo."],n:'PizzAR',q:'Caja para pizzerías',e:'amarillo',p:'Agregar el cierre de caja por WhatsApp.',l:'https://pizzar.raventechsapp.com'},
+{id:'panar',pr:"listo",u:"Configuración → 🎓 Modo Práctica",st:["👤 Dueño + cajero (1 local)", "Módulos plus: stock/recetas, gastos", "💲 Pan francés $5.500 el kilo (1/2 kg $2.800)", "📊 ~900 ventas en 14 días, ticket ~$23.000", "ℹ️ Hoy es un solo local, sin sucursales."],n:'PanAR',q:'Caja para panaderías',e:'amarillo',p:'Agregar el cierre de caja por WhatsApp.',l:'https://panar.raventechsapp.com'},
+{id:'lavar',pr:"listo",u:"Config → 🎓 Modo Práctica",st:["👤 Dueño (ve todas las sedes)", "├ 🚗 Lavadero Centro · Encargado, Cajero, Lavador", "├ 🚗 Sede Norte · 2 empleados por link", "├ 🚗 Sede Sur · 2 empleados por link", "└ 🚗 Sede Oeste · 2 empleados por link", "💲 Lavado simple $25.000 · completo $40.000 · encerado $55.000 · detailing $120.000", "📊 ~875 ventas en 14 días, ticket ~$37.000, fidelización por patente"],n:'lavAR',q:'Lavaderos con fidelización por patente',e:'amarillo',p:'Armar un demo y ofrecerlo a un lavadero.',l:'https://lavar.raventechsapp.com'},
+{id:'otras',n:'PuntoVenta, EmpresAR, CharlAR, AhorrAR, legalAR',q:'Apps que quedan en el portfolio',e:'azul',p:'Terminar la auditoría ROBUSTEZ de CharlAR, AhorrAR y legalAR.'}
+];
+let st={};try{st=JSON.parse(localStorage.getItem('rt_tablero')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('rt_tablero',JSON.stringify(st))}catch(e){}};
+let filtro='todas',edit=null;
+const g=a=>Object.assign({e:a.e,p:a.p,f:false},st[a.id]||{});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function card(a){const d=g(a);
+ if(edit===a.id)return `<div class="card ${d.e}"><div class="nom">${esc(a.n)}</div><label class="que">Estado</label><select id="ee">${Object.entries(EST).map(([k,v])=>`<option value="${k}" ${d.e===k?'selected':''}>${v}</option>`).join('')}</select><label class="que">Próximo paso</label><textarea id="ep" rows="3">${esc(d.p)}</textarea><div class="acc"><button class="btn" onclick="guardar('${a.id}')">Guardar</button><button class="btn" onclick="edit=null;draw()">Cancelar</button></div></div>`;
+ return `<div class="card ${d.e}"><div class="top"><div><div class="nom">${esc(a.n)}</div><div class="que">${esc(a.q)}</div></div><span class="est">${EST[d.e]}</span></div>
+ <div class="paso"><b>Próximo paso</b>${esc(d.p)}</div>
+ ${a.pr?`<div class="pr">🎓 Práctica: <b>${a.pr==='listo'?'lista ✔':'pendiente'}</b><br><span class="que">${esc(a.u||'')}</span></div>`:`<div class="pr off">🎓 Práctica: <b>pendiente</b></div>`}
+ ${a.st?`<details><summary>Ver estructura de la empresa de ejemplo</summary><pre>${esc(a.st.join('\n'))}</pre></details>`:''}
+ <div class="acc"><button class="btn star ${d.f?'on':''}" onclick="foco('${a.id}')">${d.f?'★ En foco':'☆ Foco'}</button><button class="btn" onclick="edit='${a.id}';draw()">✎ Editar</button>${a.l?`<a class="btn" href="${a.l}" target="_blank" rel="noopener">Abrir</a>`:''}</div></div>`}
+function foco(id){const a=APPS.find(x=>x.id===id),d=g(a);
+ if(!d.f&&APPS.filter(x=>g(x).f).length>=3){alert('Máximo 3 en foco. Sacá una primero: la idea es no dispersarte.');return}
+ st[id]=Object.assign(st[id]||{},{f:!d.f});save();draw()}
+function guardar(id){st[id]=Object.assign(st[id]||{},{e:document.getElementById('ee').value,p:document.getElementById('ep').value.trim()});edit=null;save();draw()}
+function draw(){
+ document.getElementById('fl').innerHTML=[['todas','Todas'],...Object.entries(EST)].map(([k,v])=>`<button class="chip ${filtro===k?'on':''}" onclick="filtro='${k}';draw()">${v} (${k==='todas'?APPS.length:APPS.filter(a=>g(a).e===k).length})</button>`).join('');
+ const f=APPS.filter(a=>g(a).f);
+ document.getElementById('foco').innerHTML=f.length?f.map(card).join(''):'<div class="vacio">Todavía no elegiste. Tocá ☆ Foco en hasta 3 apps: lo único que tocás esta semana.</div>';
+ const order={rojo:0,azul:1,amarillo:2,verde:3};
+ document.getElementById('all').innerHTML=APPS.filter(a=>filtro==='todas'||g(a).e===filtro).sort((a,b)=>order[g(a).e]-order[g(b).e]).map(card).join('');
+}
+draw();
+</script>
+</body>
+</html>
