@@ -1,8 +1,9 @@
 <!--
   RAVENTECHS · TABLERO MAESTRO
-  Versión: 2.2.0
+  Versión: 2.3.0
   Fecha: 2026-10-24
   Changelog:
+   - 2.3.0: se suman BarbeAR, PeloteAR, TimbreAr y LogisAR con su estado actual y próximo paso.
    - 2.2.0: PuntoVenta, EmpresAR, CharlAR, AhorrAR y legalAR dejan de ir juntas en una tarjeta: cada una con su descripción real, sus etapas y su próximo paso.
    - 2.1.0: se suma manejAr (choferes de Uber/Didi/Cabify) con sus 5 etapas tildadas y su próximo paso.
    - 2.0.0: cada app muestra 5 etapas (Construida, Publicada, Práctica, Probada por vos, Con clientes) que se tocan para tildar;
@@ -83,6 +84,10 @@ const APPS=[
 {id:'lavar',n:'lavAR',q:'Lavaderos con fidelización por patente',e:'amarillo',s:[T,T,T,F,F],p:'Probar 🎓 Modo Práctica y activar una sede para ver la caja.',u:'Config → 🎓 Modo Práctica',l:'https://lavar.raventechsapp.com',st:["👤 Dueño (ve todas las sedes)","├ 🚗 Lavadero Centro · Encargado, Cajero, Lavador","├ 🚗 Sede Norte · 2 empleados por link","├ 🚗 Sede Sur · 2 empleados por link","└ 🚗 Sede Oeste · 2 empleados por link","💲 Lavado simple $25.000 · completo $40.000 · encerado $55.000 · detailing $120.000","📊 ~875 ventas en 14 días, ticket ~$37.000, fidelización por patente"]},
 {id:'miagenda',n:'MiAgenda',q:'Agenda grupal',e:'verde',s:[T,T,T,T,F],p:'Agregar el botón "Eliminar usuario".',l:'https://raventechs.github.io/miagenda/'},
 {id:'saludar',n:'SaludAR',q:'Recordatorios de medicación con push',e:'amarillo',s:[T,T,F,F,F],p:'Confirmar que llega una sola notificación a la hora correcta con la app instalada.',l:'https://raventechs.github.io/saludar/'},
+{id:'barbear',n:'BarbeAR',q:'Caja, turnos y reservas online para barberías: el cliente reserva solo por link',e:'amarillo',s:[T,T,F,T,F],p:'Sumarle el 🎓 Modo Práctica como a las demás cajas y probarla con una barbería real.',l:'https://barbear.raventechsapp.com'},
+{id:'pelotear',n:'PeloteAR',q:'Complejos de canchas de fútbol, pádel y tenis: reservas, precios diurno/nocturno, buffet y cierre de caja',e:'amarillo',s:[T,T,T,T,F],p:'Pasarla a offline-first (hoy depende de un servidor en Railway) y sumar el aviso de turnos por WhatsApp.',u:'Versión de demostración en /demo del repo',l:'https://pelotear.raventechsapp.com'},
+{id:'timbrear',n:'TimbreAr',q:'Timbre virtual para edificios y locales: QR en la entrada, audio y texto en tiempo real, sin instalar nada',e:'amarillo',s:[T,T,T,T,F],p:'Validar el aviso con la app cerrada en Xiaomi y probarla en un edificio real; después video y modo no molestar.',u:'Edificio de ejemplo raventechs-hq (viene cargado en el link)',l:'https://timbrear.raventechsapp.com/portero-virtual.html?edificio=raventechs-hq'},
+{id:'logisar',n:'LogisAR',q:'Logística y distribución para un operador con depósito central: stock por empresa, presupuestos, hojas de ruta y app del chofer',e:'azul',s:[F,F,F,F,F],p:'Crear el proyecto Firebase, pegar la config y publicar las reglas de Firestore (todavía sin probar); después mostrar la demo al cliente y definir tarifas.',u:'Demo navegable v0.3 con datos de ejemplo',l:'https://raventechs.github.io/logisar-demo/'},
 {id:'embudo',n:'Embudo de demos',q:'Qué pasa después de que alguien pide un demo',e:'azul',s:[F,F,F,F,F],p:'Hacer la landing de entrega genérica para las 10 apps.'},
 {id:'trial',n:'Módulo demo/vencimiento',q:'Período de prueba reutilizable',e:'azul',s:[F,F,F,F,F],p:'Esperar a que CarneAR tenga peso libre y login anónimo; recién ahí integrarlo.'},
 {id:'panel',n:'Panel RavenTechs',q:'Clientes y cobranza de todas las apps',e:'azul',s:[T,F,F,F,F],p:'Crear el proyecto Firebase raventechs-admin y pegar su config.'},
