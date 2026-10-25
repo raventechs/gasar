@@ -1,8 +1,9 @@
 <!--
   RAVENTECHS · TABLERO MAESTRO
-  Versión: 2.1.0
+  Versión: 2.2.0
   Fecha: 2026-10-24
   Changelog:
+   - 2.2.0: PuntoVenta, EmpresAR, CharlAR, AhorrAR y legalAR dejan de ir juntas en una tarjeta: cada una con su descripción real, sus etapas y su próximo paso.
    - 2.1.0: se suma manejAr (choferes de Uber/Didi/Cabify) con sus 5 etapas tildadas y su próximo paso.
    - 2.0.0: cada app muestra 5 etapas (Construida, Publicada, Práctica, Probada por vos, Con clientes) que se tocan para tildar;
             resumen global arriba; "Para hacer ahora" con el próximo paso de las apps en foco y de las urgentes; estructura de la empresa de ejemplo.
@@ -86,7 +87,11 @@ const APPS=[
 {id:'trial',n:'Módulo demo/vencimiento',q:'Período de prueba reutilizable',e:'azul',s:[F,F,F,F,F],p:'Esperar a que CarneAR tenga peso libre y login anónimo; recién ahí integrarlo.'},
 {id:'panel',n:'Panel RavenTechs',q:'Clientes y cobranza de todas las apps',e:'azul',s:[T,F,F,F,F],p:'Crear el proyecto Firebase raventechs-admin y pegar su config.'},
 {id:'centralbot',n:'CentralbotAr',q:'Chatbot de WhatsApp multi-cliente',e:'azul',s:[T,T,F,F,F],p:'Renovar el token de Meta (vence cada 24 h) y hacer la pantalla "Mi equipo".'},
-{id:'otras',n:'PuntoVenta, EmpresAR, CharlAR, AhorrAR, legalAR',q:'Apps que quedan en el portfolio',e:'azul',s:[T,T,F,F,F],p:'Terminar la auditoría ROBUSTEZ de CharlAR, AhorrAR y legalAR.'}
+{id:'puntoventa',n:'PuntoVenta',q:'Punto de venta multi-local hasta 30 sucursales, con cuenta corriente y morosidad de clientes',e:'amarillo',s:[T,T,F,F,F],p:'Probar crear una sucursal nueva y la cuenta corriente con morosidad; después límite de crédito y reporte de morosos.',l:'https://puntoventa.raventechsapp.com'},
+{id:'empresar',n:'EmpresAR',q:'Control de documentación con vencimientos: habilitaciones, seguros, VTV y personal',e:'amarillo',s:[T,T,F,F,F],p:'Probarla con la empresa de gas envasado cargando sus documentos reales; los módulos Plus (ventas, stock, flota) quedan para la próxima versión.',l:'https://garrafar.raventechsapp.com'},
+{id:'charlar',n:'CharlAR',q:'Compañía digital por voz para adultos mayores: la familia configura y el abuelo usa',e:'rojo',s:[T,T,F,F,F],p:'Pasar la key de GROQ a un Worker de Cloudflare (hoy está expuesta en el código); después el panel familiar con historial de conversaciones.',l:'https://charlar.raventechsapp.com'},
+{id:'ahorrar',n:'AhorrAR',q:'Descuentos y beneficios por zona, para consumidores, comercios y administración',e:'azul',s:[T,T,F,F,F],p:'Definir el modelo comercial para comercios; después el panel admin de promociones y la geolocalización por zona.',l:'https://ahorrar.raventechsapp.com'},
+{id:'legalar',n:'legalAR',q:'Consulta legal orientativa con IA, para abogados y para quien necesita orientación rápida',e:'azul',s:[T,T,F,F,F],p:'Crear el Worker de LegalAR en Cloudflare (el código ya está listo) y agregar el dominio en Firebase Auth.',l:'https://legalar.raventechsapp.com/legalar.html'}
 ];
 let st={};try{st=JSON.parse(localStorage.getItem('rt_tablero')||'{}')}catch(e){}
 const save=()=>{try{localStorage.setItem('rt_tablero',JSON.stringify(st))}catch(e){}};
