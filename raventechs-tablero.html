@@ -1,14 +1,15 @@
 <!--
   RAVENTECHS · TABLERO MAESTRO
-  Versión: 2.0.0
-  Fecha: 2026-10-18
+  Versión: 2.1.0
+  Fecha: 2026-10-24
   Changelog:
+   - 2.1.0: se suma manejAr (choferes de Uber/Didi/Cabify) con sus 5 etapas tildadas y su próximo paso.
    - 2.0.0: cada app muestra 5 etapas (Construida, Publicada, Práctica, Probada por vos, Con clientes) que se tocan para tildar;
             resumen global arriba; "Para hacer ahora" con el próximo paso de las apps en foco y de las urgentes; estructura de la empresa de ejemplo.
    - 1.1.0: enlace directo a cada app, estado del Modo Práctica y estructura de la empresa de ejemplo.
    - 1.0.0: una tarjeta por app con estado y próximo paso; foco de la semana (máx. 3).
   PENDIENTE:
-   - Las etapas salen de lo anotado hasta el 18/10/2026: corregilas tocándolas.
+   - Las etapas salen de lo anotado hasta el 18/10/2026 (manejAr: 24/10/2026): corregilas tocándolas.
    - Se guarda solo en este navegador (si cambiás de celular hay que volver a marcar).
 -->
 <!DOCTYPE html>
@@ -63,13 +64,14 @@ footer{color:var(--mut);font-size:13px;margin:26px 0}
 <div class="chips" id="fl"></div>
 <h2>⭐ Foco de la semana</h2><div class="grid foco" id="foco"></div>
 <h2>Todas las apps</h2><div class="grid" id="all"></div>
-<footer>Etapas según lo anotado hasta el 18/10/2026. Tocá una etapa para tildarla o destildarla; ✎ cambia el estado y el próximo paso. Se guarda en este celular.</footer>
+<footer>Etapas según lo anotado hasta el 18/10/2026 (manejAr: 24/10/2026). Tocá una etapa para tildarla o destildarla; ✎ cambia el estado y el próximo paso. Se guarda en este celular.</footer>
 <script>
 const EST={verde:'Con clientes',amarillo:'Para vender/probar',azul:'En desarrollo',rojo:'Urgente'};
 const ETAPAS=['Construida','Publicada','Práctica lista','Probada por vos','Con clientes'];
 const T=true,F=false;
 const APPS=[
 {id:'gasar',n:'GasAR',q:'Distribuidora de gas: central, camionetas, revendedores',e:'amarillo',s:[T,T,T,F,F],p:'Firebase → Authentication → Comenzar; habilitar Google y Correo/Contraseña. Después crear la distribuidora de PRÁCTICA y tildar los 10 pasos.',u:'Panel admin → Modo Raven → CREAR DISTRIBUIDORA DE PRÁCTICA',l:'https://raventechs.github.io/gasar/gasar-admin.html',st:["👤 Dueño/Administración (panel admin)","├ 🏭 Central: mostrador y depósito (100 garrafas de 10 kg, 20 de 15 kg, 10 de 40 kg, más vacíos)","├ 🚚 Camioneta 1 y Camioneta 2: stock y caja propios, rinden al volver","└ 🏪 Reventa → Kiosco Don Pepe (crédito $500.000) y Almacén La Esquina ($300.000)","💲 Garrafa 10 kg $22.000 · 15 kg $33.000 · 40 kg $88.000"]},
+{id:'manejar',n:'manejAr',q:'Ganancias reales para choferes de Uber, Didi y Cabify',e:'verde',s:[T,T,T,T,T],p:'Plan Flota: revisar cómo se crea desde Ajustes y probarlo con Firebase real. Después, el backup automático de las 2 AM.',u:'Abrir con ?demo=1 al final del link (4 semanas de datos de ejemplo)',l:'https://raventechs.github.io/ManejAr/'},
 {id:'mtc',n:'MTC',q:'App con API key expuesta (auditoría 8/7)',e:'rojo',s:[T,T,F,F,F],p:'Sacar la API key del cliente con un proxy en Netlify Functions.'},
 {id:'carnear',n:'CarneAR',q:'Caja para carnicerías, multi-sucursal',e:'verde',s:[T,T,T,F,F],p:'Probar 🎓 Modo Práctica en una cuenta tuya; después pasar peso libre y login anónimo de la beta a producción.',u:'Config → 🎓 Modo Práctica (las sucursales se ven con plan Full)',l:'https://carnear.raventechsapp.com',st:["👤 Dueño (dashboard con todas las sucursales)","├ 🥩 Principal","├ 🥩 Carnicería Centro · cajero por link de WhatsApp","├ 🥩 Sucursal Norte · cajero por link","└ 🥩 Sucursal Sur · cajero por link","📊 ~670 ventas en 7 días, ticket ~$68.000, gastos y 3 proveedores"]},
 {id:'comprazona',n:'CompraZona',q:'Marketplace de garrafas y agua (La Matanza)',e:'amarillo',s:[T,T,T,F,F],p:'Publicar reglas v0.2, activar App Check y salir a conseguir las primeras garraferas.',u:'Ya tiene simulador.html y botón demo en el admin (genera pedidos de ejemplo)',l:'https://comprazona.raventechsapp.com'},
