@@ -10,7 +10,7 @@ Base de trabajo, actualizada el 26/10/2026 (incluye manejAr, la auditoría de ba
 
 | App | Estado | Etapas | Versión | Modo práctica / demo | Backup | Próximo paso |
 |---|---|---|---|---|---|---|
-| GasAR | 🟡 Para vender/probar | ✓✓✓·· | admin 1.4.0 · vendedor 1.3.0 | 🎓 Práctica (Modo Raven) | ❌ ninguno (solo CSV) | Firebase → Authentication → Comenzar; habilitar Google y Correo/Contraseña. Después crear la distribuidora de PRÁCTICA y tildar los 10 pasos. |
+| GasAR | 🟡 Para vender/probar | ✓✓✓·· | admin 1.5.0 · vendedor 1.3.0 | 🎓 Práctica (Modo Raven) | ✅ auto (solo administrador) + manual + restaurar catálogo (26/10; el historial de ventas/cajas NO se restaura desde la app por las reglas; probado en simulador, falta probar en tu celular) | Firebase → Authentication → Comenzar; habilitar Google y Correo/Contraseña. Después crear la distribuidora de PRÁCTICA y tildar los 10 pasos. |
 | manejAr | 🟢 Con clientes | ✓✓✓✓✓ | v2.2.0 | Demo propio (?demo=1, 4 semanas de datos) | 🟡 solo manual (JSON y CSV) + copia en la nube; sin auto ni restaurar | Plan Flota: revisar cómo se crea desde Ajustes y probarlo con Firebase real. Después, el backup automático de las 2 AM. |
 | MTC | 🔴 Urgente | ✓✓··· | — | — falta | ❌ ninguno (solo CSV) | Sacar la API key del cliente con un proxy en Netlify Functions. |
 | CarneAR | 🟢 Con clientes | ✓✓✓·· | v2.7 prod · v2.8-beta | 🎓 Práctica (prod y beta) | ✅ auto + manual + restaurar (arreglado 26/10, probado en simulador; falta probar en tu celular) | Probar 🎓 Modo Práctica en una cuenta tuya; después pasar peso libre y login anónimo de la beta a producción. |
@@ -20,8 +20,8 @@ Base de trabajo, actualizada el 26/10/2026 (incluye manejAr, la auditoría de ba
 | PizzAR | 🟡 Para vender/probar | ✓✓✓·· | v2.9 | 🎓 Práctica | ✅ auto + manual + restaurar (arreglado 26/10: incluye gastos y comandas; falta probar en tu celular) | Publicar firestore.rules (Firebase), probar link de cajero + 🎓 Práctica; después cierre de caja por WhatsApp. |
 | PanAR | 🟡 Para vender/probar | ✓✓✓·· | v1.7 | 🎓 Práctica | ✅ auto + manual + restaurar (arreglado 26/10: incluye gastos; falta probar en tu celular) | Publicar firestore.rules (Firebase), probar link de cajero + 🎓 Práctica; después cierre de caja por WhatsApp. ⚠️ Falta la vista Stock (el botón existe pero no hay pantalla). |
 | lavAR | 🟡 Para vender/probar | ✓✓✓·· | v2.4 | 🎓 Práctica | ✅ auto + manual + restaurar (arreglado 26/10: sucursales, gastos, fidelización y empleados; falta probar en tu celular) | Probar 🎓 Modo Práctica y activar una sede para ver la caja. |
-| MiAgenda | 🟢 Con clientes | ✓✓✓✓· | v2.4 | 🎓 Práctica (actividades de ejemplo) | ❌ ninguno (solo CSV) | Agregar el botón "Eliminar usuario". |
-| SaludAR | 🟡 Para vender/probar | ✓✓··· | — | — falta | ❌ ninguno (solo CSV) | Confirmar que llega una sola notificación a la hora correcta con la app instalada. |
+| MiAgenda | 🟢 Con clientes | ✓✓✓✓· | v2.5 | 🎓 Práctica (actividades de ejemplo) | ✅ auto + manual + restaurar (agregado 26/10; falta probar en tu celular) | Agregar el botón "Eliminar usuario". |
+| SaludAR | 🟡 Para vender/probar | ✓✓··· | v2.7 | — falta | ✅ auto + manual + restaurar (agregado 26/10; falta probar en tu celular) | Confirmar que llega una sola notificación a la hora correcta con la app instalada. |
 | BarbeAR | 🟡 Para vender/probar | ✓✓·✓· | v2.6 | — falta | ✅ auto + manual + restaurar (arreglado 26/10, probado en simulador; falta probar en tu celular) | Sumarle el 🎓 Modo Práctica como a las demás cajas y probarla con una barbería real. |
 | PeloteAR | 🟡 Para vender/probar | ✓✓✓✓· | — | Demo propio (/demo, sin Firebase) | 🟡 solo al cierre del día, vía servidor Railway; sin manual ni restaurar | Pasarla a offline-first (hoy depende de un servidor en Railway) y sumar el aviso de turnos por WhatsApp. |
 | TimbreAr | 🟡 Para vender/probar | ✓✓✓✓· | — | Demo propio (edificio raventechs-hq) | ❌ ninguno | Validar el aviso con la app cerrada en Xiaomi y probarla en un edificio real; después video y modo no molestar. |
@@ -47,9 +47,9 @@ Se revisó el código de las 22 apps (sin iniciar sesión en ellas: se verificó
 - **Hallazgo PanAR:** un error de carga (faltaba la vista Stock) cortaba el script y dejaba sin funcionar cierre de caja, gastos, modo práctica y service worker. Corregido en v1.7; la vista Stock sigue faltando.
 - **Parcial (3):** legalAR (sin restaurar), manejAr (solo manual), PeloteAR (solo al cierre del día y depende de Railway).
 - **Puntos de resguardo:** cada repo tocado tiene una rama `pre-backup-2026-10-25` (CarneAR, BarbeAR) o `pre-backup-2026-10-26` (PizzAR, PanAR, lavAR) con el código anterior, por si hay que volver atrás.
-- **Sin backup (10):** GasAR, MiAgenda, SaludAR, TimbreAr, CharlAR, AhorrAR, CentralbotAr, CompraZona, MTC, LogisAR. La mayoría solo exporta CSV, que sirve para mirar datos pero no para restaurarlos.
+- **Sin backup (7):** TimbreAr, CharlAR, AhorrAR, CentralbotAr, CompraZona, MTC, LogisAR. La mayoría solo exporta CSV, que sirve para mirar datos pero no para restaurarlos.
 - **Ninguna app tiene backup desde el servidor.** El automático actual solo corre si el dueño abre la app ese día. Pendiente decidir la opción de backup nocturno a las 2 AM (GitHub Actions) que se propuso para manejAr.
-- **Orden sugerido para arreglar:** 1) ✅ CarneAR y BarbeAR, 2) ✅ PizzAR, PanAR y lavAR, 2b) ✅ SecuroPro, Rodix, PuntoVenta y EmpresAR, 3) sumar el estándar a las apps sin backup que ya van a clientes (GasAR, MiAgenda, SaludAR), 4) el resto.
+- **Orden sugerido para arreglar:** 1) ✅ CarneAR y BarbeAR, 2) ✅ PizzAR, PanAR y lavAR, 2b) ✅ SecuroPro, Rodix, PuntoVenta y EmpresAR, 3) ✅ GasAR, MiAgenda y SaludAR, 4) el resto (TimbreAr, CharlAR, AhorrAR, CentralbotAr, CompraZona, MTC, LogisAR; luego legalAR restaurar, manejAr y PeloteAR).
 
 ## Modo demo / práctica en todas las apps
 
