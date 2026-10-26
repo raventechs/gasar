@@ -1,8 +1,9 @@
 <!--
   GasAR · PANEL DE ADMINISTRACIÓN
-  Versión: 1.4.0-practica
-  Fecha: 2026-10-13
+  Versión: 1.5.0-backup
+  Fecha: 2026-10-26
   Changelog:
+   - 1.5.0-backup: BACKUP estándar. Automático una vez por día al entrar el administrador (baja un JSON con todas las colecciones de la distribuidora y deja copia en IndexedDB), botón manual y restaurar catálogo (productos, marcas, puntos de venta, revendedores, proveedores) en la pestaña "Usuarios y backup". El historial de movimientos no se restaura desde el cliente: lo protegen las reglas.
    - 1.4.0-practica: MODO PRÁCTICA. Desde Modo Raven se crea una distribuidora de mentira ya armada (precios $22.000/$33.000/$88.000, marcas, stock, 2 camionetas, reventa, 2 revendedores y 3 usuarios de prueba con clave 123456) y una guía de 10 pasos con tildes dentro del Resumen. Nada se borra: para empezar de cero se crea otra práctica.
    - 1.3.1: el ingreso con Google ahora explica el error (dominio no autorizado, proveedor sin habilitar, etc.) y reintenta por redirección si el celular bloquea la ventana.
    - 1.3.0-etapa4: COMPRAS (proveedor, líneas con marca, canje de vacíos, pago mixto, comprobante; suman stock a la central
@@ -86,7 +87,7 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.4.0-practica';
+const VERSION='1.5.0-backup';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='2580';
 
@@ -131,7 +132,7 @@ auth.onAuthStateChanged(async u=>{
     if(snap&&snap.exists){
       const p=snap.data();
       if(p.activo!==true||!['administrador','administracion'].includes(p.rol)){await auth.signOut();hideSplash();return toast('Este usuario no tiene acceso al panel.',true)}
-      S.perfil=p;S.tid=p.tenantId;listen();
+      S.perfil=p;S.tid=p.tenantId;listen();chequearBackupDiario();
     }else if(soyRaven(u)){
       S.raven=true;S.perfil={nombre:'Raven',rol:'administrador'};loadTenants();
     }else{await auth.signOut();hideSplash();return toast('Tu usuario no está habilitado.',true)}
@@ -553,7 +554,7 @@ function vRaven(){
   <div class="card"><h2>Modo Práctica</h2><p class="mut" style="font-size:15px">Crea una distribuidora de mentira ya armada, con precios, stock, camionetas, revendedores y usuarios de prueba, más una guía de 10 pasos para probar todo. Sirve para aprender y para mostrar el sistema.</p>
   <div style="height:10px"></div><button class="btn pri" data-a="crearPractica">CREAR DISTRIBUIDORA DE PRÁCTICA</button></div></main>`;
 }
-const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios']];
+const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios y backup']];
 function head(){
   const adm=S.perfil.rol==='administrador'||S.raven;
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">${esc((S.tenant||{}).nombre||'')} · ${esc(S.perfil.nombre)}${S.online?'':' · sin señal'}</span>
@@ -662,13 +663,142 @@ function vPuntos(){
   return `<main><div class="card"><h2>Puntos de venta</h2>${S.ubis.map(u=>`<div class="row"><span><b>${esc(u.nombre)}</b> <span class="tag">${TIPOS[u.tipo]||''}</span> ${u.activa===false?'<span class="tag bad">inactivo</span>':''}</span><button class="btn sm" data-a="tubi" data-id="${u.id}" data-v="${u.activa===false?1:0}">${u.activa===false?'Activar':'Desactivar'}</button></div>`).join('')}
   <div style="height:12px"></div><div class="f"><div><label>Nombre</label><input id="nu_n" placeholder="Camioneta 1"></div><div><label>Tipo</label><select id="nu_t"><option value="camioneta">Camioneta</option><option value="revendedores">Revendedores</option><option value="central">Central</option></select></div><div><button class="btn pri" data-a="nubi">AGREGAR PUNTO</button></div></div></div></main>`;
 }
+// ══════════ BACKUP ESTÁNDAR 1.5.0 ══════════
+// Automático: una vez por día al entrar el administrador de la distribuidora. Baja el archivo JSON y deja una copia en IndexedDB (últimas 7).
+// Manual y restaurar: pestaña "Usuarios y backup". Incluye TODAS las colecciones de la distribuidora (ventas, cajas, cuentas corrientes, stock, auditoría...).
+// Restaurar devuelve solo el catálogo (productos, marcas, puntos de venta, revendedores y proveedores): el historial de movimientos está protegido
+// por las reglas de la base (no se puede reescribir) y, si alguna vez hiciera falta, lo recupera Raven desde el archivo con herramientas de servidor.
+function _bkCfg() { return { app: 'GasAR', ver: '1.5.0', cols: ['productos', 'marcas', 'ubicaciones', 'revendedores', 'proveedores', 'saldosStock', 'ctaSaldos', 'ctaEnvases', 'provSaldos',
+  'ventas', 'turnosCaja', 'movimientosCaja', 'movimientosStock', 'cargas', 'rendiciones', 'ctaCte', 'provCte', 'compras', 'gastos', 'auditoria'],
+  maestros: ['productos', 'marcas', 'ubicaciones', 'revendedores', 'proveedores'] }; }
+function _bkLsKey() { return 'gasar-ultimo-backup-' + (S.tid || ''); }
+function _bkUltimo() { try { return localStorage.getItem(_bkLsKey()) || '—'; } catch (e) { return '—'; } }
+function _bkPuede() { return !!(S.user && S.tid && S.perfil && (S.perfil.rol === 'administrador' || S.raven)); }
+function _bkHoy() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _bkSer(v) {
+  if (v && typeof v === 'object') {
+    if (typeof v.toMillis === 'function' && 'seconds' in v && 'nanoseconds' in v) return { __ts: [v.seconds, v.nanoseconds] };
+    if (Array.isArray(v)) return v.map(_bkSer);
+    const o = {}; Object.keys(v).forEach(k => { o[k] = _bkSer(v[k]); }); return o;
+  }
+  return v;
+}
+function _bkRev(v) {
+  if (v && typeof v === 'object') {
+    if (Array.isArray(v)) return v.map(_bkRev);
+    if (Array.isArray(v.__ts) && v.__ts.length === 2) return new firebase.firestore.Timestamp(v.__ts[0], v.__ts[1]);
+    const o = {}; Object.keys(v).forEach(k => { o[k] = _bkRev(v[k]); }); return o;
+  }
+  return v;
+}
+async function _bkLeer(ref) {
+  const s = await ref.get();
+  return s.docs.map(d => Object.assign({ _id: d.id }, _bkSer(d.data())));
+}
+function _bkIdb(fecha, json) {
+  return new Promise(function (res) {
+    try {
+      const rq = indexedDB.open('gasar-backup', 1);
+      rq.onupgradeneeded = function () { rq.result.createObjectStore('b', { keyPath: 'fecha' }); };
+      rq.onsuccess = function () {
+        const idb = rq.result, tx = idb.transaction('b', 'readwrite'), st = tx.objectStore('b');
+        st.put({ fecha: fecha, json: json });
+        st.getAllKeys().onsuccess = function (e) { const ks = e.target.result.sort(); while (ks.length > 7) st.delete(ks.shift()); };
+        tx.oncomplete = function () { idb.close(); res(true); };
+        tx.onerror = tx.onabort = function () { idb.close(); res(false); };
+      };
+      rq.onerror = function () { res(false); };
+    } catch (e) { res(false); }
+  });
+}
+function _bkDescargar(json, fecha) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'gasar-backup-' + fecha + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+async function _bkCommit_no_usado(ops) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = db.batch();
+    ops.slice(i, i + 400).forEach(function (o) { if (o[2]) batch.set(o[0], o[1], { merge: true }); else batch.set(o[0], o[1]); });
+    await batch.commit();
+  }
+}
+async function _bkCommit(ops) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = db.batch();
+    ops.slice(i, i + 400).forEach(function (o) { batch.set(o[0], o[1], { merge: true }); });
+    await batch.commit();
+  }
+}
+async function generarBackup(silencioso) {
+  const K = _bkCfg();
+  if (!_bkPuede()) { if (!silencioso) toast('Solo el administrador puede hacer el backup', true); return; }
+  const tid = S.tid;
+  try {
+    if (!silencioso) toast('Preparando backup… puede tardar un poco');
+    const datos = {};
+    for (const n of K.cols) datos[n] = await _bkLeer(db.collection('tenants').doc(tid).collection(n));
+    const tsnap = await db.collection('tenants').doc(tid).get();
+    const fecha = _bkHoy();
+    const json = JSON.stringify({ app: K.app, version: K.ver, fecha: new Date().toISOString(), tenantId: tid,
+      distribuidora: (S.tenant && S.tenant.nombre) || '', tenant: tsnap.exists ? _bkSer(tsnap.data()) : {}, datos: datos });
+    _bkDescargar(json, fecha);
+    await _bkIdb(fecha, json);
+    try { localStorage.setItem(_bkLsKey(), fecha); } catch (e) {}
+    if (!silencioso) { toast('✅ Backup descargado'); render(); }
+  } catch (e) { console.warn('generarBackup', e); if (!silencioso) toast('Error al generar backup: ' + (e.code || e.message), true); }
+}
+function _bkPedirArchivo() {
+  const i = document.createElement('input'); i.type = 'file'; i.accept = '.json,application/json'; i.style.display = 'none';
+  i.addEventListener('change', async function () { try { await restaurarBackup(i); } finally { i.remove(); } });
+  document.body.appendChild(i); i.click();
+}
+async function restaurarBackup(input) {
+  const K = _bkCfg();
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    if (!_bkPuede()) { toast('Solo el administrador puede restaurar', true); return; }
+    const bk = JSON.parse(await file.text());
+    if (bk.app !== K.app || !bk.datos) { toast('El archivo no es un backup de GasAR', true); return; }
+    if (bk.tenantId !== S.tid) { toast('Este backup es de otra distribuidora (' + (bk.distribuidora || bk.tenantId) + ')', true); return; }
+    const ops = [];
+    K.maestros.forEach(function (n) {
+      (bk.datos[n] || []).forEach(function (d) { const r = Object.assign({}, d), id = r._id; delete r._id; if (id) ops.push([db.collection('tenants').doc(S.tid).collection(n), id, _bkRev(r)]); });
+    });
+    if (!confirm('Se van a volver a cargar ' + ops.length + ' registros del catálogo (productos, marcas, puntos de venta, revendedores y proveedores). Las ventas, cajas, stock y cuentas corrientes NO se tocan: no se pueden reescribir. ¿Continuar?')) return;
+    toast('Restaurando…');
+    await _bkCommit(ops.map(function (o) { return [o[0].doc(o[1]), o[2]]; }));
+    toast('✅ Catálogo restaurado (' + ops.length + ' registros)');
+  } catch (e) { console.warn('restaurarBackup', e); toast('Error al restaurar: ' + (e.code || e.message), true); }
+  finally { input.value = ''; }
+}
+function chequearBackupDiario() {
+  if (!S.user || !S.perfil || S.raven || S.perfil.rol !== 'administrador' || !S.tid) return;
+  let ultimo = null; try { ultimo = localStorage.getItem(_bkLsKey()); } catch (e) {}
+  if (ultimo !== _bkHoy()) setTimeout(function () { generarBackup(true); }, 8000);
+}
+function vBackupCard() {
+  return `<div class="card"><h2>💾 Backup de datos</h2><p class="mut">Una copia de TODO lo de esta distribuidora (ventas, cajas, stock, cuentas corrientes, compras, gastos y auditoría). Se baja sola una vez por día al entrar el administrador; también podés bajarla cuando quieras.
+  Restaurar devuelve el catálogo (productos, marcas, puntos de venta, revendedores y proveedores); el historial de movimientos está protegido y no se puede reescribir desde acá.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-a="bkgen">📥 DESCARGAR BACKUP AHORA</button><button class="btn" data-a="bkrest">📤 Restaurar catálogo desde un archivo</button></div>
+  <p class="mut" style="margin-top:8px">Último backup: ${esc(_bkUltimo())}</p></div>`;
+}
+// ══════════ FIN BACKUP ══════════
+
 function vUsuarios(){
   return `<main><div class="card tw"><h2>Usuarios</h2><table><tr><th>Nombre</th><th>Mail</th><th>Rol</th><th>Punto</th><th></th></tr>
   ${S.usuarios.map(u=>`<tr><td>${esc(u.nombre)}</td><td>${esc(u.email||'')}</td><td>${esc(ROLES[u.rol]||u.rol)}</td><td>${u.ubicacionId?esc(ubiN(u.ubicacionId)):''}</td><td>${u.activo?'':'<span class="tag bad">inactivo</span> '}<button class="btn sm" data-a="tusu" data-id="${u.id}" data-v="${u.activo?0:1}">${u.activo?'Desactivar':'Activar'}</button></td></tr>`).join('')}</table></div>
   <div class="card"><h2>Agregar usuario</h2><div class="f"><div><label>Nombre</label><input id="nus_n"></div><div><label>Mail</label><input id="nus_e" type="email"></div><div><label>Clave inicial</label><input id="nus_p" type="password"></div>
   <div><label>Rol</label><select id="nus_r">${Object.entries(ROLES).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
   <div><label>Punto (solo vendedores)</label><select id="nus_u"><option value="">—</option>${S.ubis.filter(u=>u.activa!==false).map(u=>`<option value="${u.id}">${esc(u.nombre)}</option>`).join('')}</select></div></div>
-  <div style="height:12px"></div><button class="btn pri" data-a="nusu">CREAR USUARIO</button><p class="mut">Los vendedores usan la app del vendedor con este mismo mail y clave.</p></div></main>`;
+  <div style="height:12px"></div><button class="btn pri" data-a="nusu">CREAR USUARIO</button><p class="mut">Los vendedores usan la app del vendedor con este mismo mail y clave.</p></div>${vBackupCard()}</main>`;
 }
 function vCargas(){
   const cams=S.ubis.filter(u=>u.tipo==='camioneta'&&u.activa!==false);
@@ -787,7 +917,7 @@ document.addEventListener('click',e=>{
     tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
     tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
     anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,
-    nmarca:nuevaMarca,tmarca:()=>toggleMarca(D.id,D.v==='1'),nubi:nuevaUbi,tubi:()=>toggleUbi(D.id,D.v==='1'),nusu:nuevoUsuario,tusu:()=>toggleUsuario(D.id,D.v==='1')};
+    nmarca:nuevaMarca,tmarca:()=>toggleMarca(D.id,D.v==='1'),nubi:nuevaUbi,tubi:()=>toggleUbi(D.id,D.v==='1'),nusu:nuevoUsuario,bkgen:()=>generarBackup(false),bkrest:_bkPedirArchivo,tusu:()=>toggleUsuario(D.id,D.v==='1')};
   if(A[D.a])A[D.a]();
 });
 document.addEventListener('change',e=>{if(e.target.id==='vf'&&e.target.value){S.fecha=e.target.value;subVentas();e.target.blur();render()}});
