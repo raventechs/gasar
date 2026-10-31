@@ -21,6 +21,45 @@ service cloud.firestore {
     function esCajero(owner) { return esAnonimo() && exists(cajeroRef(owner)); }
     function cajeroDeSuc(owner, sid) { return esCajero(owner) && get(cajeroRef(owner)).data.sucursalId == sid; }
 
+    function miEmail(email) {
+      return logueado() && !esAnonimo() && request.auth.token.email != null
+        && request.auth.token.email.lower() == email.lower();
+    }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly(['email','nombre','plan','activo','features','limiteSucursales','creadoEn','uid','demoHasta'])
+        && (!('demoHasta' in request.resource.data) || request.resource.data.demoHasta <= request.time + duration.value(15, 'd'))
+        && request.resource.data.plan == 'basico'
+        && request.resource.data.activo == true
+        && request.resource.data.limiteSucursales == 1
+        && request.resource.data.features.keys().hasOnly(['gastos','ticket','proveedores'])
+        && request.resource.data.features.gastos == false
+        && request.resource.data.features.ticket == false
+        && request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) && clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
+      allow update: if esAdmin()
+        || (miEmail(email)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid'])
+            && request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['demoHasta'])
+            && !('demoHasta' in resource.data)
+            && request.resource.data.demoHasta <= request.time + duration.value(15, 'd'));
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() && resource.data.uid == request.auth.uid;
+    }
+
     // Link de sucursal / código del cajero
     match /barbearLinks/{cod} {
       allow get: if true;

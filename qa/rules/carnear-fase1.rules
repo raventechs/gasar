@@ -20,7 +20,8 @@ service cloud.firestore {
     }
     // Plan inicial que la app crea sola al primer ingreso (plan básico)
     function clienteInicialValido(email) {
-      return request.resource.data.keys().hasOnly(['email','nombre','plan','activo','features','limiteSucursales','creadoEn','uid'])
+      return request.resource.data.keys().hasOnly(['email','nombre','plan','activo','features','limiteSucursales','creadoEn','uid','demoHasta'])
+        && (!('demoHasta' in request.resource.data) || request.resource.data.demoHasta <= request.time + duration.value(15, 'd'))
         && request.resource.data.plan == 'basico'
         && request.resource.data.activo == true
         && request.resource.data.limiteSucursales == 1
@@ -35,11 +36,15 @@ service cloud.firestore {
       allow get: if esAdmin() || miEmail(email);
       allow list: if esAdmin();
       allow create: if esAdmin() || (miEmail(email) && clienteInicialValido(email));
-      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
       allow update: if esAdmin()
         || (miEmail(email)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid'])
-            && request.resource.data.uid == request.auth.uid);
+            && request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['demoHasta'])
+            && !('demoHasta' in resource.data)
+            && request.resource.data.demoHasta <= request.time + duration.value(15, 'd'));
       allow delete: if esAdmin();
     }
 
