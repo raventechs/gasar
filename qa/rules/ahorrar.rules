@@ -1,0 +1,57 @@
+rules_version = '2';
+// AhorrAR — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto ahorrar-rt → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!('banned' in d) || d.banned == false)
+        && (!('status' in d) || d.status == 'demo')
+        && (!('isAdmin' in d) || d.isAdmin == false)
+        && (!('demoExpiry' in d) || d.demoExpiry == null || d.demoExpiry <= request.time + duration.value(15, 'd'));
+    }
+
+    // Usuarios: cada uno lee/crea/edita SOLO el suyo (sin tocar status/banned/demoExpiry/isAdmin). Admin: todo.
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) && altaValida()) || esAdmin();
+      allow update: if (esDueno(uid) && !toca(['status','banned','demoExpiry','isAdmin','features'])) || esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    // Promociones: comunidad. Leen los logueados; publica cada uno a su nombre; confirmar/reportar solo cambia contadores.
+    match /promociones/{id} {
+      allow read: if logueado();
+      allow create: if logueado() && request.resource.data.creadoPor == request.auth.uid;
+      allow update: if esAdmin()
+        || (logueado()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmaciones','confirmadoPor','reportes']));
+      allow delete: if esAdmin() || (logueado() && resource.data.creadoPor == request.auth.uid);
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
