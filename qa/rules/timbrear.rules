@@ -1,0 +1,66 @@
+rules_version = '2';
+// TimbrAR — Reglas Firestore (conservadoras). Visitantes y residentes entran con sesión anónima y un link; el servidor de push usa Admin SDK.
+// Publicar en Firebase Console → proyecto timbrear-cdc41 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// LIMITACIÓN CONOCIDA: el directorio de departamentos incluye teléfono y token de aviso y lo lee cualquier visitante del edificio;
+// resolverlo requiere mover esos datos a un documento privado (cambio de la app, pendiente).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function soloCambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // Edificios y departamentos: se crean desde la pantalla de configuración (solo alta); modifica el admin
+    // y el residente puede activar su depto / registrar su token de aviso.
+    match /edificios/{eid} {
+      allow read: if logueado();
+      allow create: if logueado();
+      allow update, delete: if esAdmin();
+
+      match /departamentos/{did} {
+        allow read: if logueado();
+        allow create: if logueado();
+        allow update: if esAdmin()
+          || (logueado() && soloCambia(['fcmToken','tokenEn','activado','nombreReal','activadoEn']));
+        allow delete: if esAdmin();
+      }
+    }
+
+    // Sesiones de llamada: el visitante crea "llamando"; luego solo cambian estado y datos de la llamada
+    match /sesiones/{sid} {
+      allow read: if logueado();
+      allow create: if logueado()
+        && request.resource.data.estado == 'llamando'
+        && request.resource.data.keys().hasOnly(['edificioId','edificioNombre','deptoId','deptoEtiqueta','estado','creadaEn']);
+      allow update: if logueado()
+        && soloCambia(['estado','motivoRechazo','puertaAbierta','abiertaEn','fotoUrl','fotoEn'])
+        && request.resource.data.estado in ['llamando','activa','rechazada','finalizada'];
+      allow delete: if esAdmin();
+
+      match /mensajes/{mid} {
+        allow read: if logueado();
+        allow create: if logueado() && request.resource.data.size() <= 12;
+        allow update, delete: if false;
+      }
+    }
+
+    match /fcmTokens/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
