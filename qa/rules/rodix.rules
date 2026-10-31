@@ -1,0 +1,93 @@
+// RODIX — Reglas de Firestore ENDURECIDAS (propuesta 27/10/2026)
+// Probadas en simulador propio (qa/e2e) contra el flujo completo de la app + 9 ataques.
+// ORDEN DE PUBLICACIÓN: 1) publicar primero la app Rodix v1.9.2 (envía inviteId al unirse un chofer)
+//                       2) recién después pegar estas reglas en Firebase Console > Firestore > Reglas > Publicar.
+// Si se invierte el orden, los choferes nuevos no podrán unirse hasta publicar la app.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function miUsuario()  { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
+    function miFlotaId()  { return miUsuario().flotaId; }
+    function esChofer()   { return miUsuario().rolFlota == 'chofer'; }
+    function esAdmin()    { return request.auth != null && request.auth.token.email == 'rgaraventa@gmail.com' && request.auth.token.email_verified == true; }
+
+    match /vehicles/{vehicleId} {
+      allow read:   if request.auth != null && (resource.data.uid == miFlotaId() || esAdmin());
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && !esChofer();
+      allow update: if request.auth != null && resource.data.uid == miFlotaId() && !esChofer();
+      allow delete: if request.auth != null && ((resource.data.uid == miFlotaId() && !esChofer()) || esAdmin());
+
+      match /docs/{docId} {
+        allow read: if request.auth != null && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow write, delete: if request.auth != null && !esChofer() && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /services/{serviceId} {
+        allow read: if request.auth != null && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow write, delete: if request.auth != null && !esChofer() && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /insumos/{insumoId} {
+        allow read, update: if request.auth != null && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow create, delete: if request.auth != null && !esChofer() && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /revisiones/{revisionId} {
+        allow read, create: if request.auth != null && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow update, delete: if request.auth != null && !esChofer() && (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+    }
+
+    match /usuarios/{userId} {
+      // Cada uno lee SU documento; el dueño lee a sus choferes; el chofer lee al dueño; el admin lee todos.
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || esAdmin() ||
+        resource.data.flotaId == request.auth.uid ||
+        miFlotaId() == userId
+      );
+      // Alta: solo como dueño de su propia flota, en demo y con el plan mínimo (no puede darse plan a sí mismo).
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.rolFlota == 'owner'
+        && request.resource.data.flotaId == request.auth.uid
+        && request.resource.data.status == 'demo'
+        && request.resource.data.banned == false
+        && request.resource.data.features.keys().hasOnly(['limiteVehiculos'])
+        && request.resource.data.features.limiteVehiculos == 1;
+      allow update: if request.auth != null && (
+        esAdmin() ||
+        // a) el usuario edita lo suyo, sin tocar plan/estado/demo/baneo/identidad ni la flota
+        (request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['features','status','banned','demoStart','demoExpiry','uid','email','flotaId','rolFlota'])) ||
+        // b) usuario antiguo sin flotaId: se la asigna a sí mismo como dueño
+        (request.auth.uid == userId && resource.data.get('flotaId', null) == null
+          && request.resource.data.flotaId == userId && request.resource.data.rolFlota == 'owner'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flotaId','rolFlota'])) ||
+        // c) unirse como chofer: exige una invitación VÁLIDA y SIN USAR de ese dueño
+        (request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flotaId','rolFlota','inviteId'])
+          && request.resource.data.rolFlota == 'chofer'
+          && request.resource.data.flotaId != request.auth.uid
+          && get(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteId)).data.usado == false
+          && get(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteId)).data.ownerUid == request.resource.data.flotaId) ||
+        // d) el dueño quita a un chofer de su flota
+        (resource.data.flotaId == request.auth.uid && request.resource.data.flotaId == userId
+          && request.resource.data.rolFlota == 'owner'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flotaId','rolFlota']))
+      );
+      allow delete: if esAdmin();
+    }
+
+    match /invitaciones/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.ownerUid == request.auth.uid && !esChofer() && request.resource.data.usado == false;
+      // solo se puede MARCAR como usada (una vez), por quien la usa
+      allow update: if request.auth != null && resource.data.usado == false
+        && request.resource.data.usado == true && request.resource.data.usadoUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usado','usadoPor','usadoUid']);
+    }
+
+    // Registro de errores de la app: cualquiera escribe, solo el admin lee.
+    match /errores/{id} {
+      allow create: if true;
+      allow read: if esAdmin();
+    }
+  }
+}

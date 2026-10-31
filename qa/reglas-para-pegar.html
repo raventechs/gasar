@@ -1,0 +1,2071 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reglas para pegar</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#0f1e3d;--mu:#5b6783;--ac:#1d4ed8;--bd:#e3e7f0;--ok:#16794a;--pe:#b45309;--re:#475569}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1222;--card:#131c33;--tx:#e8edf8;--mu:#9aa7c4;--ac:#6d9bff;--bd:#25314f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,sans-serif;padding:20px 16px 60px}
+main{max-width:760px;margin:0 auto}h1{font-size:1.5rem;margin:0 0 6px}.lead{color:var(--mu);margin:0 0 18px}
+.steps{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 18px;margin-bottom:18px}.steps ol{margin:6px 0 0 18px;padding:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:center}h2{font-size:1.1rem;margin:0}
+.badge{font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:99px;color:#fff;white-space:nowrap}.b-ok{background:var(--ok)}.b-pend{background:var(--pe)}.b-rev{background:var(--re)}
+.meta{color:var(--mu);font-size:.85rem;margin:6px 0}code{background:rgba(127,127,127,.15);padding:1px 5px;border-radius:5px;font-size:.85em}
+.test{font-size:.9rem}.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.btn{display:inline-block;background:var(--ac);color:#fff;text-decoration:none;border:0;border-radius:10px;padding:10px 14px;font:600 .95rem system-ui;cursor:pointer}.btn.sec{background:transparent;color:var(--ac);border:1.5px solid var(--ac)}
+details summary{cursor:pointer;color:var(--mu);font-size:.9rem}textarea{width:100%;margin-top:8px;font:12px/1.4 ui-monospace,monospace;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px}
+</style></head><body><main>
+<h1>Reglas de Firestore para pegar</h1>
+<p class="lead">Una tarjeta por app. Estas reglas no borran ni modifican datos: solo controlan quién puede leer y escribir.</p>
+<div class="steps"><b>Cómo pegar (cada app, 1 minuto):</b><ol>
+<li>Tocá <b>Abrir Firebase → Reglas</b> (te lleva al proyecto correcto).</li>
+<li>Tocá <b>Copiar reglas</b>.</li>
+<li>En Firebase: seleccioná todo el texto que hay (Ctrl/Cmd+A), pegá (Ctrl/Cmd+V) y apretá <b>Publicar</b>.</li>
+<li>Hacé la prueba corta de la tarjeta. Si algo falla, avisame con el nombre de la app.</li></ol></div>
+<section class="card" id="a0">
+<div class="top"><h2>Rodix</h2><span class="badge b-ok">Listo</span></div>
+<p class="meta">Proyecto: <code>vehigest-ar</code> · Archivo: <code>qa/rules/rodix.rules</code></p>
+<p>Ya publicadas. No hay que pegar nada.</p>
+<p class="test"><b>Probar después:</b> —</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/vehigest-ar/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="0">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t0" readonly rows="14" spellcheck="false">// RODIX — Reglas de Firestore ENDURECIDAS (propuesta 27/10/2026)
+// Probadas en simulador propio (qa/e2e) contra el flujo completo de la app + 9 ataques.
+// ORDEN DE PUBLICACIÓN: 1) publicar primero la app Rodix v1.9.2 (envía inviteId al unirse un chofer)
+//                       2) recién después pegar estas reglas en Firebase Console &gt; Firestore &gt; Reglas &gt; Publicar.
+// Si se invierte el orden, los choferes nuevos no podrán unirse hasta publicar la app.
+rules_version = &#x27;2&#x27;;
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function miUsuario()  { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
+    function miFlotaId()  { return miUsuario().flotaId; }
+    function esChofer()   { return miUsuario().rolFlota == &#x27;chofer&#x27;; }
+    function esAdmin()    { return request.auth != null &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27; &amp;&amp; request.auth.token.email_verified == true; }
+
+    match /vehicles/{vehicleId} {
+      allow read:   if request.auth != null &amp;&amp; (resource.data.uid == miFlotaId() || esAdmin());
+      allow create: if request.auth != null &amp;&amp; request.resource.data.uid == request.auth.uid &amp;&amp; !esChofer();
+      allow update: if request.auth != null &amp;&amp; resource.data.uid == miFlotaId() &amp;&amp; !esChofer();
+      allow delete: if request.auth != null &amp;&amp; ((resource.data.uid == miFlotaId() &amp;&amp; !esChofer()) || esAdmin());
+
+      match /docs/{docId} {
+        allow read: if request.auth != null &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow write, delete: if request.auth != null &amp;&amp; !esChofer() &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /services/{serviceId} {
+        allow read: if request.auth != null &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow write, delete: if request.auth != null &amp;&amp; !esChofer() &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /insumos/{insumoId} {
+        allow read, update: if request.auth != null &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow create, delete: if request.auth != null &amp;&amp; !esChofer() &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+      match /revisiones/{revisionId} {
+        allow read, create: if request.auth != null &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+        allow update, delete: if request.auth != null &amp;&amp; !esChofer() &amp;&amp; (get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.uid == miFlotaId() || esAdmin());
+      }
+    }
+
+    match /usuarios/{userId} {
+      // Cada uno lee SU documento; el dueño lee a sus choferes; el chofer lee al dueño; el admin lee todos.
+      allow read: if request.auth != null &amp;&amp; (
+        request.auth.uid == userId || esAdmin() ||
+        resource.data.flotaId == request.auth.uid ||
+        miFlotaId() == userId
+      );
+      // Alta: solo como dueño de su propia flota, en demo y con el plan mínimo (no puede darse plan a sí mismo).
+      allow create: if request.auth != null &amp;&amp; request.auth.uid == userId
+        &amp;&amp; request.resource.data.rolFlota == &#x27;owner&#x27;
+        &amp;&amp; request.resource.data.flotaId == request.auth.uid
+        &amp;&amp; request.resource.data.status == &#x27;demo&#x27;
+        &amp;&amp; request.resource.data.banned == false
+        &amp;&amp; request.resource.data.features.keys().hasOnly([&#x27;limiteVehiculos&#x27;])
+        &amp;&amp; request.resource.data.features.limiteVehiculos == 1;
+      allow update: if request.auth != null &amp;&amp; (
+        esAdmin() ||
+        // a) el usuario edita lo suyo, sin tocar plan/estado/demo/baneo/identidad ni la flota
+        (request.auth.uid == userId
+          &amp;&amp; !request.resource.data.diff(resource.data).affectedKeys().hasAny([&#x27;features&#x27;,&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoStart&#x27;,&#x27;demoExpiry&#x27;,&#x27;uid&#x27;,&#x27;email&#x27;,&#x27;flotaId&#x27;,&#x27;rolFlota&#x27;])) ||
+        // b) usuario antiguo sin flotaId: se la asigna a sí mismo como dueño
+        (request.auth.uid == userId &amp;&amp; resource.data.get(&#x27;flotaId&#x27;, null) == null
+          &amp;&amp; request.resource.data.flotaId == userId &amp;&amp; request.resource.data.rolFlota == &#x27;owner&#x27;
+          &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;flotaId&#x27;,&#x27;rolFlota&#x27;])) ||
+        // c) unirse como chofer: exige una invitación VÁLIDA y SIN USAR de ese dueño
+        (request.auth.uid == userId
+          &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;flotaId&#x27;,&#x27;rolFlota&#x27;,&#x27;inviteId&#x27;])
+          &amp;&amp; request.resource.data.rolFlota == &#x27;chofer&#x27;
+          &amp;&amp; request.resource.data.flotaId != request.auth.uid
+          &amp;&amp; get(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteId)).data.usado == false
+          &amp;&amp; get(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteId)).data.ownerUid == request.resource.data.flotaId) ||
+        // d) el dueño quita a un chofer de su flota
+        (resource.data.flotaId == request.auth.uid &amp;&amp; request.resource.data.flotaId == userId
+          &amp;&amp; request.resource.data.rolFlota == &#x27;owner&#x27;
+          &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;flotaId&#x27;,&#x27;rolFlota&#x27;]))
+      );
+      allow delete: if esAdmin();
+    }
+
+    match /invitaciones/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &amp;&amp; request.resource.data.ownerUid == request.auth.uid &amp;&amp; !esChofer() &amp;&amp; request.resource.data.usado == false;
+      // solo se puede MARCAR como usada (una vez), por quien la usa
+      allow update: if request.auth != null &amp;&amp; resource.data.usado == false
+        &amp;&amp; request.resource.data.usado == true &amp;&amp; request.resource.data.usadoUid == request.auth.uid
+        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;usado&#x27;,&#x27;usadoPor&#x27;,&#x27;usadoUid&#x27;]);
+    }
+
+    // Registro de errores de la app: cualquiera escribe, solo el admin lee.
+    match /errores/{id} {
+      allow create: if true;
+      allow read: if esAdmin();
+    }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a1">
+<div class="top"><h2>CarneAR — Fase 1</h2><span class="badge b-ok">Listo</span></div>
+<p class="meta">Proyecto: <code>carnear-1d2c4</code> · Archivo: <code>qa/rules/carnear-fase1.rules</code></p>
+<p>Ya publicadas y funcionando. Se reemplazan por la Fase 2 (siguiente fila).</p>
+<p class="test"><b>Probar después:</b> —</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/carnear-1d2c4/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="1">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t1" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// CarneAR — Reglas Firestore (FASE 1: no requiere cambios en la app).
+// Publicar en Firebase Console → proyecto carnear-1d2c4 → Firestore Database → Reglas.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────── Funciones ─────────
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(owner) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function miEmail(email) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.token.email != null
+        &amp;&amp; request.auth.token.email.lower() == email.lower();
+    }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;])
+        &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
+        &amp;&amp; request.resource.data.activo == true
+        &amp;&amp; request.resource.data.limiteSucursales == 1
+        &amp;&amp; request.resource.data.features.keys().hasOnly([&#x27;gastos&#x27;,&#x27;ticket&#x27;,&#x27;proveedores&#x27;])
+        &amp;&amp; request.resource.data.features.gastos == false
+        &amp;&amp; request.resource.data.features.ticket == false
+        &amp;&amp; request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      allow update: if esAdmin()
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
+            &amp;&amp; request.resource.data.uid == request.auth.uid);
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Links de sucursal (código del cajero) ─────────
+    match /carnearLinks/{cod} {
+      allow get: if logueado();                                   // el cajero entra con el código
+      allow list: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;   // backup del dueño (where uid == suyo)
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    // ───────── Datos del negocio ─────────
+    match /negocios/{owner} {
+      allow read, write: if esDueno(owner);
+      allow read: if esAdmin();
+      allow get: if esAnonimo();                                  // cajero lee features del negocio
+
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        // Cajero (acceso por link): opera catálogo, stock, ventas y gastos
+        allow read, write: if esAnonimo()
+          &amp;&amp; col in [&#x27;productos&#x27;,&#x27;insumos&#x27;,&#x27;proveedores&#x27;,&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+        allow read: if esAnonimo() &amp;&amp; col == &#x27;sucursales&#x27;;
+      }
+
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if esAnonimo() &amp;&amp; col in [&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+      }
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;
+    }
+
+    // ───────── Registro de errores: cualquiera escribe, solo el admin lee ─────────
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a2">
+<div class="top"><h2>CarneAR — Fase 2 (cajero atado a su sucursal)</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>carnear-1d2c4</code> · Archivo: <code>qa/rules/carnear-fase2.rules</code></p>
+<p>Pegar DESPUÉS de que la app nueva esté publicada (ya lo está). Los cajeros deben abrir su link una vez.</p>
+<p class="test"><b>Probar después:</b> Entrá como dueño y cargá una venta; abrí el link de cajero en otro celu y cargá otra venta.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/carnear-1d2c4/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="2">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t2" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// CarneAR — Reglas Firestore (FASE 2: el cajero queda atado a SU sucursal).
+// Publicar en Firebase Console → proyecto carnear-1d2c4 → Firestore Database → Reglas → pegar TODO → Publicar.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros ya dentro deben volver a abrir su link una vez.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────── Funciones ─────────
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(owner) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function miEmail(email) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.token.email != null
+        &amp;&amp; request.auth.token.email.lower() == email.lower();
+    }
+    // Cajero registrado (por código de sucursal válido) en el negocio / en una sucursal puntual
+    function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
+    function esCajero(owner) { return esAnonimo() &amp;&amp; exists(cajeroRef(owner)); }
+    function cajeroDeSuc(owner, sid) { return esCajero(owner) &amp;&amp; get(cajeroRef(owner)).data.sucursalId == sid; }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;])
+        &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
+        &amp;&amp; request.resource.data.activo == true
+        &amp;&amp; request.resource.data.limiteSucursales == 1
+        &amp;&amp; request.resource.data.features.keys().hasOnly([&#x27;gastos&#x27;,&#x27;ticket&#x27;,&#x27;proveedores&#x27;])
+        &amp;&amp; request.resource.data.features.gastos == false
+        &amp;&amp; request.resource.data.features.ticket == false
+        &amp;&amp; request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      allow update: if esAdmin()
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
+            &amp;&amp; request.resource.data.uid == request.auth.uid);
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Links de sucursal (código del cajero) ─────────
+    match /carnearLinks/{cod} {
+      allow get: if logueado();                                   // el cajero entra con el código
+      allow list: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;   // backup del dueño (where uid == suyo)
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    // ───────── Datos del negocio ─────────
+    match /negocios/{owner} {
+      allow read, write: if esDueno(owner);
+      allow read: if esAdmin();
+      allow get: if esCajero(owner);                              // cajero registrado lee features del negocio
+
+      // Alta del cajero: solo con un código de SU negocio
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() &amp;&amp; request.auth.uid == cid
+          &amp;&amp; exists(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo))
+          &amp;&amp; get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.uid == owner
+          &amp;&amp; get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.sucursalId == request.resource.data.sucursalId;
+        allow read: if esDueno(owner) || esAdmin() || (esAnonimo() &amp;&amp; request.auth.uid == cid);
+        allow delete: if esDueno(owner);
+      }
+
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        // Cajero (acceso por link): opera catálogo, stock, ventas y gastos
+        allow read, write: if esCajero(owner)
+          &amp;&amp; col in [&#x27;productos&#x27;,&#x27;insumos&#x27;,&#x27;proveedores&#x27;,&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+        allow read: if esCajero(owner) &amp;&amp; col == &#x27;sucursales&#x27;;
+      }
+
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if cajeroDeSuc(owner, sid) &amp;&amp; col in [&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+      }
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;
+    }
+
+    // ───────── Registro de errores: cualquiera escribe, solo el admin lee ─────────
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a3">
+<div class="top"><h2>PanAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>panar-b08f1</code> · Archivo: <code>qa/rules/panar.rules</code></p>
+<p>Pendiente de confirmar que la publicaste. Habilita el registro de usuarios y el PIN de 6 dígitos.</p>
+<p class="test"><b>Probar después:</b> Entrá como dueño; creá un cajero con PIN y entrá como cajero.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/panar-b08f1/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="3">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t3" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// Publicar en Firebase Console → Firestore Database → Reglas.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esDueno(owner) { return request.auth != null &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return request.auth != null
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function esCajero(owner) {
+      return request.auth != null
+        &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;
+        &amp;&amp; exists(/databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid));
+    }
+
+    // Registro de usuarios (para el panel de actividad): cada dueño escribe solo el suyo; el admin lee todos.
+    match /usuarios/{uid} {
+      allow read: if esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == uid);
+      allow create, update: if request.auth != null
+        &amp;&amp; request.auth.uid == uid
+        &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;]);
+      allow delete: if esAdmin();
+    }
+
+    // Membresía de cajero: se crea sólo si el PIN coincide con el que fijó el dueño.
+    match /negocios/{owner}/cajeros/{cid} {
+      allow read: if esDueno(owner) || esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == cid);
+      allow create: if request.auth != null
+        &amp;&amp; request.auth.uid == cid
+        &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;
+        &amp;&amp; request.resource.data.pin == get(/databases/$(database)/documents/negocios/$(owner)/configuracion/general).data.pinCajero;
+      allow delete: if esDueno(owner);
+    }
+
+    // Datos del negocio: el dueño todo; el cajero (con membresía) opera caja; el admin solo lee (copias de seguridad).
+    match /negocios/{owner}/{col}/{doc=**} {
+      allow read, write: if esDueno(owner)
+        || (col in [&#x27;ventas&#x27;,&#x27;productos&#x27;,&#x27;insumos&#x27;,&#x27;gastos&#x27;,&#x27;cierres&#x27;,&#x27;comandas&#x27;] &amp;&amp; esCajero(owner));
+      allow read: if esAdmin();
+      allow read: if col == &#x27;configuracion&#x27; &amp;&amp; esCajero(owner);
+    }
+
+    // Registro de errores: cualquiera escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if request.auth != null;
+      allow read: if esAdmin();
+    }
+
+    // Datos anteriores en la raíz: cerrados
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a4">
+<div class="top"><h2>PizzAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>pizzar-b48af</code> · Archivo: <code>qa/rules/pizzar.rules</code></p>
+<p>Igual que PanAR.</p>
+<p class="test"><b>Probar después:</b> Entrá como dueño; creá un cajero con PIN y entrá como cajero.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/pizzar-b48af/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="4">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t4" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// Publicar en Firebase Console → Firestore Database → Reglas.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esDueno(owner) { return request.auth != null &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return request.auth != null
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function esCajero(owner) {
+      return request.auth != null
+        &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;
+        &amp;&amp; exists(/databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid));
+    }
+
+    // Registro de usuarios (para el panel de actividad): cada dueño escribe solo el suyo; el admin lee todos.
+    match /usuarios/{uid} {
+      allow read: if esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == uid);
+      allow create, update: if request.auth != null
+        &amp;&amp; request.auth.uid == uid
+        &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;]);
+      allow delete: if esAdmin();
+    }
+
+    // Membresía de cajero: se crea sólo si el PIN coincide con el que fijó el dueño.
+    match /negocios/{owner}/cajeros/{cid} {
+      allow read: if esDueno(owner) || esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == cid);
+      allow create: if request.auth != null
+        &amp;&amp; request.auth.uid == cid
+        &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;
+        &amp;&amp; request.resource.data.pin == get(/databases/$(database)/documents/negocios/$(owner)/configuracion/general).data.pinCajero;
+      allow delete: if esDueno(owner);
+    }
+
+    // Datos del negocio: el dueño todo; el cajero (con membresía) opera caja; el admin solo lee (copias de seguridad).
+    match /negocios/{owner}/{col}/{doc=**} {
+      allow read, write: if esDueno(owner)
+        || (col in [&#x27;ventas&#x27;,&#x27;productos&#x27;,&#x27;insumos&#x27;,&#x27;gastos&#x27;,&#x27;cierres&#x27;,&#x27;comandas&#x27;] &amp;&amp; esCajero(owner));
+      allow read: if esAdmin();
+      allow read: if col == &#x27;configuracion&#x27; &amp;&amp; esCajero(owner);
+    }
+
+    // Registro de errores: cualquiera escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if request.auth != null;
+      allow read: if esAdmin();
+    }
+
+    // Datos anteriores en la raíz: cerrados
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a5">
+<div class="top"><h2>AhorrAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>ahorrar-rt</code> · Archivo: <code>qa/rules/ahorrar.rules</code></p>
+<p>Usuarios no pueden cambiarse plan/baneo. Comunidad de promociones intacta.</p>
+<p class="test"><b>Probar después:</b> Entrá, publicá un descuento y confirmá uno.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/ahorrar-rt/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="5">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t5" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// AhorrAR — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto ahorrar-rt → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    // Usuarios: cada uno lee/crea/edita SOLO el suyo (sin tocar status/banned/demoExpiry/isAdmin). Admin: todo.
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    // Promociones: comunidad. Leen los logueados; publica cada uno a su nombre; confirmar/reportar solo cambia contadores.
+    match /promociones/{id} {
+      allow read: if logueado();
+      allow create: if logueado() &amp;&amp; request.resource.data.creadoPor == request.auth.uid;
+      allow update: if esAdmin()
+        || (logueado()
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;confirmaciones&#x27;,&#x27;confirmadoPor&#x27;,&#x27;reportes&#x27;]));
+      allow delete: if esAdmin() || (logueado() &amp;&amp; resource.data.creadoPor == request.auth.uid);
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a6">
+<div class="top"><h2>CharlAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>charlar-e5408</code> · Archivo: <code>qa/rules/charlar.rules</code></p>
+
+<p class="test"><b>Probar después:</b> Entrá y chateá con tu compañero.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/charlar-e5408/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="6">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t6" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// CharlAR — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto charlar-e5408 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+
+      // Compañero y demás datos del usuario
+      match /{sub=**} {
+        allow read, write: if esDueno(uid);
+        allow read: if esAdmin();
+      }
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a7">
+<div class="top"><h2>LegalAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>legalar</code> · Archivo: <code>qa/rules/legalar.rules</code></p>
+
+<p class="test"><b>Probar después:</b> Entrá, creá una causa y un honorario.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/legalar/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="7">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t7" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// LegalAR — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto legalar → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()
+                        &amp;&amp; (!(&#x27;features&#x27; in request.resource.data) || request.resource.data.features.plus == false))
+                    || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+
+      // Historial de consultas
+      match /{sub=**} {
+        allow read, write: if esDueno(uid);
+        allow read: if esAdmin();
+      }
+    }
+
+    // Causas y honorarios: cada abogado ve y edita solo los suyos (campo uid)
+    match /causas/{id} {
+      allow read: if (logueado() &amp;&amp; resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+    match /honorarios/{id} {
+      allow read: if (logueado() &amp;&amp; resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a8">
+<div class="top"><h2>MDTC</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>mdtc-487d4</code> · Archivo: <code>qa/rules/mdtc.rules</code></p>
+
+<p class="test"><b>Probar después:</b> Entrá y guardá una sesión.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/mdtc-487d4/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="8">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t8" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// MDTC — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto mdtc-487d4 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    match /usuarios/{uid} {
+      allow read, write: if esDueno(uid);
+      allow read: if esAdmin();
+      allow delete: if esAdmin();
+      match /{sub=**} {
+        allow read, write: if esDueno(uid);
+        allow read: if esAdmin();
+      }
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a9">
+<div class="top"><h2>EmpresAR (Garrafar)</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>empresar-ec7b7</code> · Archivo: <code>qa/rules/empresar.rules</code></p>
+
+<p class="test"><b>Probar después:</b> Entrá y creá un documento.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/empresar-ec7b7/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="9">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t9" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// EmpresAR — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto empresar-ec7b7 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    // Campos que el usuario NO puede cambiarse a sí mismo (plan, baneo, demo, admin)
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    // Alta inicial de la cuenta: siempre en demo, sin baneo, sin admin, demo de hasta 15 días
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+
+      // Documentos del usuario
+      match /{sub=**} {
+        allow read, write: if esDueno(uid);
+        allow read: if esAdmin();
+      }
+    }
+
+    // Registro de errores: cualquier usuario logueado escribe, solo el admin lee
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a10">
+<div class="top"><h2>MiAgenda</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>miagenda-37996</code> · Archivo: <code>qa/rules/miagenda.rules</code></p>
+<p>Reemplaza las reglas viejas que estaban en el HTML. La app ya fue ajustada.</p>
+<p class="test"><b>Probar después:</b> Creá una tarea; creá un grupo e invitá a otra cuenta.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/miagenda-37996/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="10">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t10" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// MiAgenda — Reglas Firestore endurecidas.
+// Publicar en Firebase Console → proyecto miagenda-37996 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con el cambio &quot;limite de integrantes tolerante&quot; (ya publicada en main).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;features&#x27; in d) || d.features == {&#x27;limiteIntegrantes&#x27;: 1})
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+    function cupoDisponible(grupo) {
+      return get(/databases/$(database)/documents/usuarios/$(grupo.ownerUid)).data.get(&#x27;features&#x27;, {}).get(&#x27;limiteIntegrantes&#x27;, 1) &gt; grupo.miembros.size();
+    }
+
+    // Usuarios: cada uno solo el suyo. Protegidos: status, banned, demoExpiry, isAdmin, features (los cambia solo el admin).
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;]))
+        || esAdmin()
+        // El dueño de un grupo, al disolverlo, libera a sus integrantes (solo grupoId -&gt; null)
+        || (logueado()
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;grupoId&#x27;])
+            &amp;&amp; request.resource.data.grupoId == null
+            &amp;&amp; resource.data.grupoId is string
+            &amp;&amp; get(/databases/$(database)/documents/grupos/$(resource.data.grupoId)).data.ownerUid == request.auth.uid);
+      allow delete: if esAdmin();
+
+      match /tareas/{tareaId} {
+        allow read, write: if esDueno(uid);
+        allow read: if esAdmin();
+      }
+    }
+
+    // Grupos: leen los logueados (para poder sumarse con el link); modifican solo dueño / integrantes
+    match /grupos/{gid} {
+      allow read: if logueado();
+      allow create: if logueado() &amp;&amp; request.resource.data.ownerUid == request.auth.uid
+        &amp;&amp; request.resource.data.miembros == [request.auth.uid];
+      allow update: if logueado() &amp;&amp; (
+        // dueño: cualquier cambio salvo cambiar de dueño
+        (request.auth.uid == resource.data.ownerUid &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid)
+        // integrante que se va
+        || (request.auth.uid in resource.data.miembros
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;miembros&#x27;])
+            &amp;&amp; request.resource.data.miembros.size() == resource.data.miembros.size() - 1
+            &amp;&amp; !(request.auth.uid in request.resource.data.miembros))
+        // persona que se suma (con cupo disponible validado en el servidor)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;miembros&#x27;])
+            &amp;&amp; request.resource.data.miembros == resource.data.miembros.concat([request.auth.uid])
+            &amp;&amp; cupoDisponible(resource.data))
+      );
+      allow delete: if logueado() &amp;&amp; resource.data.ownerUid == request.auth.uid;
+
+      match /tareas/{tid} {
+        allow read, write: if logueado()
+          &amp;&amp; request.auth.uid in get(/databases/$(database)/documents/grupos/$(gid)).data.miembros;
+      }
+    }
+
+    // Invitaciones: se leen por id (link), no se listan
+    match /invitacionesGrupo/{id} {
+      allow get: if logueado();
+      allow create: if logueado()
+        &amp;&amp; request.resource.data.creadoPorUid == request.auth.uid
+        &amp;&amp; get(/databases/$(database)/documents/grupos/$(request.resource.data.grupoId)).data.ownerUid == request.auth.uid;
+      allow update: if logueado()
+        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;ultimoUsadoPor&#x27;,&#x27;ultimoUsadoAt&#x27;]);
+      allow delete: if logueado() &amp;&amp; resource.data.creadoPorUid == request.auth.uid;
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a11">
+<div class="top"><h2>SaludAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>saludar-b565d</code> · Archivo: <code>qa/rules/saludar.rules</code></p>
+<p>Datos de salud: el admin ya NO puede ver estudios/turnos/medicación de pacientes. La app ya fue ajustada.</p>
+<p class="test"><b>Probar después:</b> Entrá, cargá un estudio; generá una invitación y unite desde otra cuenta.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/saludar-b565d/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="11">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t11" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// SaludAR — Reglas Firestore endurecidas (datos de salud).
+// Publicar en Firebase Console → proyecto saludar-b565d → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con invitaciones que guardan &quot;codigo&quot; en el miembro (ya publicada en main).
+// Privacidad: el admin NO puede leer estudios, turnos, médicos, historial ni medicamentos de los pacientes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function perfilDoc(pid) { return get(/databases/$(database)/documents/perfiles/$(pid)).data; }
+    function esTitular(pid) { return logueado() &amp;&amp; perfilDoc(pid).titularUid == request.auth.uid; }
+    function miembroDoc(pid, uid) { return /databases/$(database)/documents/perfiles/$(pid)/miembros/$(uid); }
+    function esMiembro(pid) { return logueado() &amp;&amp; exists(miembroDoc(pid, request.auth.uid)); }
+    function esEditor(pid) { return esMiembro(pid) &amp;&amp; get(miembroDoc(pid, request.auth.uid)).data.rol == &#x27;editor&#x27;; }
+    function puedeLeerPerfil(pid) { return esTitular(pid) || esMiembro(pid); }
+    function puedeEscribirPerfil(pid) { return esTitular(pid) || esEditor(pid); }
+
+    // Alta de cuenta: demo, sin baneo, sin permisos especiales. El familiar invitado se crea sin status.
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;features&#x27; in d))
+        &amp;&amp; (!(&#x27;familiarHabilitado&#x27; in d) || d.familiarHabilitado == false)
+        &amp;&amp; (!(&#x27;limiteMiembros&#x27; in d))
+        &amp;&amp; (!(&#x27;titularUid&#x27; in d))
+        &amp;&amp; (!(&#x27;esFamiliar&#x27; in d) || d.esFamiliar == false || d.plan == &#x27;familiar&#x27;)
+        &amp;&amp; (!(&#x27;demoExpiry&#x27; in d) || d.demoExpiry == null || d.demoExpiry &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    // Usuarios
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      allow update: if esAdmin()
+        || (esDueno(uid)
+            &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;,&#x27;familiarHabilitado&#x27;,&#x27;limiteMiembros&#x27;,&#x27;titularUid&#x27;])
+            // plan/esFamiliar solo para pasar a &quot;familiar invitado&quot; (no otorga permisos extra)
+            &amp;&amp; (!toca([&#x27;plan&#x27;,&#x27;esFamiliar&#x27;]) || (request.resource.data.plan == &#x27;familiar&#x27; &amp;&amp; request.resource.data.esFamiliar == true)));
+      allow delete: if esAdmin();
+    }
+
+    // Invitaciones: se leen por id (sin cuenta, antes de registrarse); no se listan.
+    match /invitacionesSalud/{code} {
+      allow get: if true;
+      allow create: if logueado()
+        &amp;&amp; request.resource.data.titularUid == request.auth.uid
+        &amp;&amp; request.resource.data.usado == false
+        &amp;&amp; esTitular(request.resource.data.perfilId);
+      // Se marca como usada UNA vez (usado false -&gt; true)
+      allow update: if logueado()
+        &amp;&amp; resource.data.usado == false
+        &amp;&amp; request.resource.data.usado == true
+        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;usado&#x27;,&#x27;usadoPor&#x27;,&#x27;usadoAt&#x27;]);
+      allow delete: if logueado() &amp;&amp; resource.data.titularUid == request.auth.uid;
+    }
+
+    // Búsqueda de &quot;mis perfiles como miembro&quot; (collectionGroup): cada uno ve solo sus propias membresías
+    match /{path=**}/miembros/{mid} {
+      allow read: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;
+    }
+
+    match /perfiles/{pid} {
+      allow read: if (logueado() &amp;&amp; resource.data.titularUid == request.auth.uid) || esMiembro(pid) || esAdmin();
+      allow create: if esDueno(request.resource.data.titularUid);
+      allow update: if (logueado() &amp;&amp; resource.data.titularUid == request.auth.uid
+                         &amp;&amp; request.resource.data.titularUid == resource.data.titularUid)
+        || (esEditor(pid) &amp;&amp; !toca([&#x27;titularUid&#x27;,&#x27;titularNombre&#x27;,&#x27;cantidadMiembros&#x27;]))
+        // alta/baja de integrante: solo el contador (±1)
+        || (esMiembro(pid)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;cantidadMiembros&#x27;])
+            &amp;&amp; (request.resource.data.cantidadMiembros - resource.data.cantidadMiembros == 1
+                || request.resource.data.cantidadMiembros - resource.data.cantidadMiembros == -1));
+      allow delete: if (logueado() &amp;&amp; resource.data.titularUid == request.auth.uid) || esAdmin();
+
+      match /miembros/{mid} {
+        allow read: if puedeLeerPerfil(pid);
+        // Alta: con invitación válida (sin usar, vigente, mismo perfil y rol) o por migración del vínculo viejo
+        allow create: if logueado() &amp;&amp; request.auth.uid == mid
+          &amp;&amp; request.resource.data.uid == request.auth.uid
+          &amp;&amp; (
+            (request.resource.data.keys().hasAny([&#x27;codigo&#x27;])
+              &amp;&amp; get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.perfilId == pid
+              &amp;&amp; get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.usado == false
+              &amp;&amp; get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.expiry &gt; request.time
+              &amp;&amp; get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.rol == request.resource.data.rol)
+            || (request.resource.data.rol == &#x27;editor&#x27;
+              &amp;&amp; get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get(&#x27;esFamiliar&#x27;, false) == true
+              &amp;&amp; get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get(&#x27;titularUid&#x27;, &#x27;&#x27;) == perfilDoc(pid).titularUid)
+          );
+        allow delete: if logueado() &amp;&amp; (request.auth.uid == mid || esTitular(pid));
+      }
+
+      // Datos clínicos: leen titular y miembros; escriben titular y editores. El admin no accede.
+      match /{col}/{docId} {
+        allow read: if col in [&#x27;estudios&#x27;,&#x27;turnos&#x27;,&#x27;medicos&#x27;,&#x27;historial&#x27;,&#x27;medicamentos&#x27;] &amp;&amp; puedeLeerPerfil(pid);
+        allow create, update, delete: if col in [&#x27;estudios&#x27;,&#x27;turnos&#x27;,&#x27;medicos&#x27;,&#x27;historial&#x27;,&#x27;medicamentos&#x27;] &amp;&amp; puedeEscribirPerfil(pid);
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a12">
+<div class="top"><h2>SecurePro</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>pro-a247e</code> · Archivo: <code>qa/rules/securepro.rules</code></p>
+<p>Dueño / editor / viewer por negocio. La app ya fue ajustada.</p>
+<p class="test"><b>Probar después:</b> Entrá, creá un cliente; invitá a un técnico y aprobalo.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/pro-a247e/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="12">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t12" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// SecurePro — Reglas Firestore endurecidas (multi-negocio con equipo: owner / editor / viewer).
+// Publicar en Firebase Console → proyecto pro-a247e → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con &quot;invitación con nombre genérico&quot; (ya publicada en main).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // ── Perfil del usuario actual (para saber a qué negocio y con qué rol pertenece) ──
+    function yoRef() { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function yo() { return get(yoRef()).data; }
+    function miembroAprobado(neg) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; exists(yoRef())
+        &amp;&amp; yo().get(&#x27;negocioId&#x27;, &#x27;&#x27;) == neg
+        &amp;&amp; yo().get(&#x27;estado&#x27;, &#x27;aprobado&#x27;) == &#x27;aprobado&#x27;
+        &amp;&amp; yo().get(&#x27;banned&#x27;, false) == false;
+    }
+    function puedeEscribir(neg) {
+      return miembroAprobado(neg) &amp;&amp; yo().get(&#x27;rol&#x27;, &#x27;owner&#x27;) in [&#x27;owner&#x27;, &#x27;editor&#x27;];
+    }
+    function soyOwnerDe(neg) {
+      return miembroAprobado(neg) &amp;&amp; yo().get(&#x27;rol&#x27;, &#x27;owner&#x27;) == &#x27;owner&#x27;;
+    }
+
+    // ── Datos del negocio: por negocioId (equipo) o, en documentos antiguos, por uid del autor ──
+    function datoPropio() { return logueado() &amp;&amp; resource.data.uid == request.auth.uid; }
+    function datoDeMiNegocio() { return miembroAprobado(resource.data.negocioId); }
+    function creaPropio() { return esDueno(request.resource.data.uid) &amp;&amp; !(&#x27;negocioId&#x27; in request.resource.data); }
+    function creaEnMiNegocio() { return puedeEscribir(request.resource.data.negocioId); }
+    function actualizaPropio() { return datoPropio() &amp;&amp; request.resource.data.uid == resource.data.uid
+                                      &amp;&amp; (!(&#x27;negocioId&#x27; in resource.data) || request.resource.data.negocioId == resource.data.negocioId); }
+    function actualizaEnMiNegocio() { return puedeEscribir(resource.data.negocioId)
+                                          &amp;&amp; request.resource.data.negocioId == resource.data.negocioId; }
+    function borraPropio() { return datoPropio(); }
+    function borraEnMiNegocio() { return puedeEscribir(resource.data.negocioId); }
+
+    // Alta de cuenta propia
+    function altaOwner() {
+      let d = request.resource.data;
+      return d.rol == &#x27;owner&#x27; &amp;&amp; d.estado == &#x27;aprobado&#x27;
+        &amp;&amp; exists(/databases/$(database)/documents/negocios/$(d.negocioId))
+        &amp;&amp; get(/databases/$(database)/documents/negocios/$(d.negocioId)).data.ownerUid == request.auth.uid
+        &amp;&amp; d.get(&#x27;banned&#x27;, false) == false
+        &amp;&amp; d.get(&#x27;status&#x27;, &#x27;demo&#x27;) == &#x27;demo&#x27;
+        &amp;&amp; (!(&#x27;features&#x27; in d) || d.features == {&#x27;limiteEmpleados&#x27;: 1})
+        &amp;&amp; !(&#x27;isAdmin&#x27; in d);
+    }
+    function altaEmpleado() {
+      let d = request.resource.data;
+      return d.rol in [&#x27;editor&#x27;, &#x27;viewer&#x27;] &amp;&amp; d.estado == &#x27;pendiente&#x27;
+        &amp;&amp; exists(/databases/$(database)/documents/negocios/$(d.negocioId))
+        &amp;&amp; d.get(&#x27;banned&#x27;, false) == false
+        &amp;&amp; d.get(&#x27;status&#x27;, &#x27;demo&#x27;) == &#x27;demo&#x27;
+        &amp;&amp; !(&#x27;features&#x27; in d) &amp;&amp; !(&#x27;isAdmin&#x27; in d);
+    }
+
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      // El equipo de un negocio se ve entre sí (lista filtrada por negocioId)
+      allow read: if miembroAprobado(resource.data.negocioId);
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; (altaOwner() || altaEmpleado())) || esAdmin();
+      allow update: if esAdmin()
+        || (esDueno(uid)
+            &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;,&#x27;rol&#x27;,&#x27;estado&#x27;,&#x27;negocioId&#x27;]))
+        // Reparación: cuenta sin negocio recibe su propio negocio como owner
+        || (esDueno(uid) &amp;&amp; !(&#x27;negocioId&#x27; in resource.data)
+            &amp;&amp; request.resource.data.rol == &#x27;owner&#x27; &amp;&amp; request.resource.data.estado == &#x27;aprobado&#x27;
+            &amp;&amp; get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.auth.uid
+            &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;]))
+        // El owner aprueba / quita / cambia el rol de su equipo
+        || (logueado() &amp;&amp; uid != request.auth.uid
+            &amp;&amp; soyOwnerDe(resource.data.negocioId)
+            &amp;&amp; resource.data.get(&#x27;rol&#x27;, &#x27;editor&#x27;) != &#x27;owner&#x27;
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;estado&#x27;,&#x27;banned&#x27;,&#x27;rol&#x27;])
+            &amp;&amp; request.resource.data.get(&#x27;rol&#x27;, &#x27;editor&#x27;) in [&#x27;editor&#x27;, &#x27;viewer&#x27;]);
+      allow delete: if esAdmin()
+        || (logueado() &amp;&amp; uid != request.auth.uid
+            &amp;&amp; soyOwnerDe(resource.data.negocioId)
+            &amp;&amp; resource.data.get(&#x27;rol&#x27;, &#x27;editor&#x27;) != &#x27;owner&#x27;);
+    }
+
+    // Invitaciones: se leen por id desde el link (sin cuenta); no se listan
+    match /invitaciones/{code} {
+      allow get: if true;
+      allow create: if soyOwnerDe(request.resource.data.negocioId)
+        &amp;&amp; request.resource.data.ownerUid == request.auth.uid
+        &amp;&amp; request.resource.data.usado == false
+        &amp;&amp; request.resource.data.rol in [&#x27;editor&#x27;, &#x27;viewer&#x27;];
+      allow update: if logueado()
+        &amp;&amp; resource.data.usado == false
+        &amp;&amp; request.resource.data.usado == true
+        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;usado&#x27;,&#x27;usadoPor&#x27;,&#x27;usadoAt&#x27;]);
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Negocios: owner escribe (sin tocar status ni ownerUid); el equipo lee; el admin activa el plan
+    match /negocios/{nid} {
+      allow read: if esDueno(resource.data.ownerUid) || miembroAprobado(nid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid) &amp;&amp; !(&#x27;status&#x27; in request.resource.data);
+      allow update: if esAdmin()
+        || (esDueno(resource.data.ownerUid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;ownerUid&#x27;]));
+      allow delete: if esAdmin();
+    }
+
+    match /clientes/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /presupuestos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /productos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /eventos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /seguimiento/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a13">
+<div class="top"><h2>PuntoVenta</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>puntoventa-f316c</code> · Archivo: <code>qa/rules/puntoventa.rules</code></p>
+<p>Dueño + empleados con invitación. La app ya fue ajustada.</p>
+<p class="test"><b>Probar después:</b> Cargá una venta como dueño; registrá un empleado por invitación y aprobalo.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/puntoventa-f316c/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="13">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t13" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// PuntoVenta — Reglas Firestore endurecidas (dueño + empleados con invitación).
+// Publicar en Firebase Console → proyecto de PuntoVenta → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con el registro de empleados reordenado (ya publicada en main).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function yoRef() { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function yo() { return get(yoRef()).data; }
+    // Empleado aprobado de un negocio / dueño
+    function empleadoAprobado(neg, owner) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; exists(yoRef())
+        &amp;&amp; yo().get(&#x27;rol&#x27;, &#x27;&#x27;) == &#x27;employee&#x27;
+        &amp;&amp; yo().get(&#x27;estado&#x27;, &#x27;&#x27;) == &#x27;aprobado&#x27;
+        &amp;&amp; yo().get(&#x27;banned&#x27;, false) == false
+        &amp;&amp; yo().get(&#x27;negocioId&#x27;, &#x27;&#x27;) == neg
+        &amp;&amp; yo().get(&#x27;ownerUid&#x27;, &#x27;&#x27;) == owner;
+    }
+
+    // ── Usuarios ──
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin()
+        || (logueado() &amp;&amp; resource.data.get(&#x27;ownerUid&#x27;, &#x27;&#x27;) == request.auth.uid);   // el dueño ve a sus empleados
+      allow list: if esAdmin();
+      allow create: if esAdmin()
+        || (esDueno(uid) &amp;&amp; (
+              // Dueño nuevo
+              (request.resource.data.rol == &#x27;owner&#x27;
+                &amp;&amp; request.resource.data.get(&#x27;banned&#x27;, false) == false
+                &amp;&amp; request.resource.data.get(&#x27;status&#x27;, &#x27;demo&#x27;) == &#x27;demo&#x27;
+                &amp;&amp; !(&#x27;features&#x27; in request.resource.data) &amp;&amp; !(&#x27;isAdmin&#x27; in request.resource.data))
+              // Empleado que se registra por invitación (queda pendiente hasta que el dueño lo apruebe)
+              || (request.resource.data.rol == &#x27;employee&#x27;
+                &amp;&amp; request.resource.data.estado == &#x27;pendiente&#x27;
+                &amp;&amp; request.resource.data.get(&#x27;banned&#x27;, false) == false
+                &amp;&amp; request.resource.data.get(&#x27;status&#x27;, &#x27;demo&#x27;) == &#x27;demo&#x27;
+                &amp;&amp; !(&#x27;features&#x27; in request.resource.data) &amp;&amp; !(&#x27;isAdmin&#x27; in request.resource.data)
+                &amp;&amp; get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.resource.data.ownerUid)
+           ));
+      allow update: if esAdmin()
+        || (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoExpiry&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;,&#x27;rol&#x27;,&#x27;estado&#x27;,&#x27;ownerUid&#x27;,&#x27;negocioId&#x27;]))
+        // El dueño aprueba / rechaza a sus empleados (solo el campo estado)
+        || (logueado() &amp;&amp; resource.data.get(&#x27;ownerUid&#x27;, &#x27;&#x27;) == request.auth.uid &amp;&amp; uid != request.auth.uid
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;estado&#x27;])
+            &amp;&amp; request.resource.data.estado in [&#x27;aprobado&#x27;, &#x27;rechazado&#x27;]);
+      allow delete: if esAdmin();
+    }
+
+    // ── Negocios ──
+    match /negocios/{nid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin()
+        || (logueado() &amp;&amp; exists(yoRef()) &amp;&amp; yo().get(&#x27;negocioId&#x27;, &#x27;&#x27;) == nid);
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid) || esAdmin();
+    }
+
+    // ── Invitaciones: se leen por id desde el link; no se listan ──
+    match /invitaciones/{code} {
+      allow get: if true;
+      allow create: if esDueno(request.resource.data.ownerUid)
+        &amp;&amp; request.resource.data.usado == false
+        &amp;&amp; get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.auth.uid;
+      allow update: if logueado()
+        &amp;&amp; resource.data.usado == false
+        &amp;&amp; request.resource.data.usado == true
+        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;usado&#x27;,&#x27;usadoPor&#x27;,&#x27;usadoAt&#x27;]);
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // ── Empleados (solicitudes y altas) ──
+    match /empleados/{eid} {
+      allow read: if esDueno(resource.data.ownerUid) || (logueado() &amp;&amp; resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid)
+        || (logueado() &amp;&amp; request.resource.data.uid == request.auth.uid
+            &amp;&amp; request.resource.data.estado == &#x27;pendiente&#x27;
+            &amp;&amp; get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // ── Ventas: dueño y empleado aprobado ──
+    match /ventas/{vid} {
+      allow read: if esDueno(resource.data.ownerUid) || (logueado() &amp;&amp; resource.data.empleadoUid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid)
+        || (request.resource.data.empleadoUid == request.auth.uid
+            &amp;&amp; empleadoAprobado(request.resource.data.negocioId, request.resource.data.ownerUid));
+      allow update: if (esDueno(resource.data.ownerUid) || (logueado() &amp;&amp; resource.data.empleadoUid == request.auth.uid))
+        &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid
+        &amp;&amp; request.resource.data.empleadoUid == resource.data.empleadoUid;
+      allow delete: if esDueno(resource.data.ownerUid) || (logueado() &amp;&amp; resource.data.empleadoUid == request.auth.uid);
+    }
+
+    // ── Gastos y clientes: solo el dueño ──
+    match /gastos/{gid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+    match /clientes/{cid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a14">
+<div class="top"><h2>LavAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>lavar-b8b84</code> · Archivo: <code>qa/rules/lavar.rules</code></p>
+<p>Cajero atado a su sucursal. La app ya fue ajustada. Cajeros deben abrir su link una vez.</p>
+<p class="test"><b>Probar después:</b> Cargá un lavado como dueño y como cajero (link).</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/lavar-b8b84/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="14">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t14" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// LavAR — Reglas Firestore endurecidas. El cajero entra por código de sucursal y queda registrado como miembro de ESA sucursal.
+// Publicar en Firebase Console → proyecto lavar-b8b84 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros que ya estaban dentro deben volver a abrir su link una vez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function sucRef(sid) { return /databases/$(database)/documents/sucursales/$(sid); }
+    function duenoDeSuc(sid) { return exists(sucRef(sid)) &amp;&amp; esDueno(get(sucRef(sid)).data.ownerUid); }
+    function cajeroDeSuc(sid) {
+      return esAnonimo()
+        &amp;&amp; exists(/databases/$(database)/documents/sucursales/$(sid)/cajeros/$(request.auth.uid));
+    }
+    function puedeSuc(sid) { return duenoDeSuc(sid) || cajeroDeSuc(sid); }
+
+    // Configuración y plan del dueño: el dueño NO puede tocar activo / limiteSucursales / features (los maneja el admin)
+    match /config/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if esAdmin()
+        || (esDueno(uid)
+            &amp;&amp; request.resource.data.get(&#x27;activo&#x27;, true) == true
+            &amp;&amp; !(&#x27;features&#x27; in request.resource.data)
+            &amp;&amp; !(&#x27;limiteSucursales&#x27; in request.resource.data));
+      allow update: if esAdmin()
+        || (esDueno(uid) &amp;&amp; !toca([&#x27;activo&#x27;,&#x27;limiteSucursales&#x27;,&#x27;features&#x27;]));
+      allow delete: if esAdmin();
+    }
+
+    // Sucursales
+    match /sucursales/{sid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+
+      // Alta del cajero: solo con un código de ESTA sucursal
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() &amp;&amp; request.auth.uid == cid
+          &amp;&amp; exists(/databases/$(database)/documents/lavArLinks/$(request.resource.data.codigo))
+          &amp;&amp; get(/databases/$(database)/documents/lavArLinks/$(request.resource.data.codigo)).data.sucursalId == sid;
+        allow read: if duenoDeSuc(sid) || esAdmin() || (esAnonimo() &amp;&amp; request.auth.uid == cid);
+        allow delete: if duenoDeSuc(sid);
+      }
+    }
+
+    // Links / códigos de sucursal y de empleado: se leen por código (antes de iniciar sesión); el dueño los lista y administra
+    match /lavArLinks/{codigo} {
+      allow get: if true;
+      allow list: if (logueado() &amp;&amp; resource.data.ownerUid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Empleados (nómina): solo el dueño
+    match /empleados/{eid} {
+      allow read: if esDueno(resource.data.ownerUid) || duenoDeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) &amp;&amp; request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Ventas y gastos: dueño de la sucursal o cajero registrado en ella
+    match /ventas/{vid} {
+      allow read: if puedeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if puedeSuc(request.resource.data.sucursalId);
+      allow update: if puedeSuc(resource.data.sucursalId) &amp;&amp; request.resource.data.sucursalId == resource.data.sucursalId;
+      allow delete: if puedeSuc(resource.data.sucursalId);
+    }
+    match /gastos/{gid} {
+      allow read: if puedeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if puedeSuc(request.resource.data.sucursalId);
+      allow update: if puedeSuc(resource.data.sucursalId) &amp;&amp; request.resource.data.sucursalId == resource.data.sucursalId;
+      allow delete: if puedeSuc(resource.data.sucursalId);
+    }
+
+    // Fidelización: el id del documento es &quot;&lt;sucursalId&gt;_&lt;patente&gt;&quot;
+    match /fidelizacion/{fid} {
+      allow read: if puedeSuc(fid.split(&#x27;_&#x27;)[0]) || esAdmin();
+      allow create: if puedeSuc(fid.split(&#x27;_&#x27;)[0]) &amp;&amp; request.resource.data.sucursalId == fid.split(&#x27;_&#x27;)[0];
+      allow update: if puedeSuc(fid.split(&#x27;_&#x27;)[0]) &amp;&amp; request.resource.data.sucursalId == fid.split(&#x27;_&#x27;)[0];
+      allow delete: if duenoDeSuc(fid.split(&#x27;_&#x27;)[0]);
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a15">
+<div class="top"><h2>BarbeAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>barbear-c482c</code> · Archivo: <code>qa/rules/barbear.rules</code></p>
+<p>Reservas públicas sin exponer datos de clientes; cajero atado a su sucursal. La app ya fue ajustada.</p>
+<p class="test"><b>Probar después:</b> Reservá un turno desde el link público; verlo en la app del dueño; cargá una venta como cajero.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/barbear-c482c/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="15">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t15" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// BarbeAR — Reglas Firestore endurecidas. Reservas públicas (sin cuenta) limitadas; cajero registrado por código de sucursal.
+// Publicar en Firebase Console → proyecto barbear-c482c → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros ya dentro deben volver a abrir su link una vez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(owner) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
+    function esCajero(owner) { return esAnonimo() &amp;&amp; exists(cajeroRef(owner)); }
+    function cajeroDeSuc(owner, sid) { return esCajero(owner) &amp;&amp; get(cajeroRef(owner)).data.sucursalId == sid; }
+
+    // Link de sucursal / código del cajero
+    match /barbearLinks/{cod} {
+      allow get: if true;
+      allow list: if (logueado() &amp;&amp; resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    match /negocios/{owner} {
+      // La página pública de reservas lee el negocio (nombre, horarios). Lista completa: solo admin.
+      allow get: if true;
+      allow list: if esAdmin();
+      allow create: if esDueno(owner)
+        &amp;&amp; !(&#x27;features&#x27; in request.resource.data) &amp;&amp; !(&#x27;limiteSucursales&#x27; in request.resource.data) &amp;&amp; !(&#x27;activo&#x27; in request.resource.data);
+      // El dueño NO puede cambiar su plan (features / limiteSucursales / activo); el admin sí
+      allow update: if esAdmin()
+        || (esDueno(owner) &amp;&amp; !toca([&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;activo&#x27;]));
+      allow delete: if esAdmin();
+
+      // Alta del cajero: solo con un código de SU negocio
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() &amp;&amp; request.auth.uid == cid
+          &amp;&amp; exists(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo))
+          &amp;&amp; get(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo)).data.uid == owner
+          &amp;&amp; get(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo)).data.sucursalId == request.resource.data.sucursalId;
+        allow read: if esDueno(owner) || esAdmin() || (esAnonimo() &amp;&amp; request.auth.uid == cid);
+        allow delete: if esDueno(owner);
+      }
+
+      // Reservas públicas: el cliente crea su turno (validado) pero NO puede leer los turnos de nadie
+      match /turnos/{tid} {
+        allow create: if request.resource.data.keys().hasOnly([&#x27;fecha&#x27;,&#x27;hora&#x27;,&#x27;barberoId&#x27;,&#x27;barberoNombre&#x27;,&#x27;servicioId&#x27;,&#x27;servicioNombre&#x27;,&#x27;servicioPrecio&#x27;,&#x27;clienteNombre&#x27;,&#x27;clienteTelefono&#x27;,&#x27;estado&#x27;,&#x27;origen&#x27;,&#x27;creadoEn&#x27;])
+          &amp;&amp; request.resource.data.estado == &#x27;pendiente&#x27;
+          &amp;&amp; request.resource.data.origen == &#x27;cliente&#x27;
+          &amp;&amp; request.resource.data.clienteNombre is string &amp;&amp; request.resource.data.clienteNombre.size() &lt;= 80
+          &amp;&amp; request.resource.data.clienteTelefono is string &amp;&amp; request.resource.data.clienteTelefono.size() &lt;= 30
+          &amp;&amp; request.resource.data.creadoEn == request.time
+          &amp;&amp; exists(/databases/$(database)/documents/negocios/$(owner));
+      }
+
+      // Horarios ocupados (sin datos personales): lectura pública, alta pública solo si el horario está libre
+      match /ocupados/{oid} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly([&#x27;fecha&#x27;,&#x27;barberoId&#x27;,&#x27;hora&#x27;])
+          &amp;&amp; oid == request.resource.data.fecha + &#x27;_&#x27; + request.resource.data.barberoId + &#x27;_&#x27; + request.resource.data.hora
+          &amp;&amp; exists(/databases/$(database)/documents/negocios/$(owner));
+        allow update, delete: if esDueno(owner) || esCajero(owner);
+      }
+
+      // Catálogo público para reservar
+      match /barberos/{bid} {
+        allow read: if true;
+        allow write: if esDueno(owner);
+      }
+      match /productos/{pid} {
+        allow read: if true;
+        allow write: if esDueno(owner) || esCajero(owner);
+      }
+
+      // Resto de datos del negocio
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if esCajero(owner)
+          &amp;&amp; col in [&#x27;insumos&#x27;,&#x27;proveedores&#x27;,&#x27;ventas&#x27;,&#x27;gastos&#x27;,&#x27;turnos&#x27;,&#x27;clientes&#x27;];
+        allow read: if esCajero(owner) &amp;&amp; col in [&#x27;sucursales&#x27;,&#x27;configuracion&#x27;];
+      }
+
+      // Sucursales: el cajero opera SOLO en la suya
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if cajeroDeSuc(owner, sid) &amp;&amp; col in [&#x27;ventas&#x27;,&#x27;gastos&#x27;,&#x27;turnos&#x27;];
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a16">
+<div class="top"><h2>CentralBotAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>centralbotar</code> · Archivo: <code>qa/rules/centralbotar.rules</code></p>
+<p>El servidor de WhatsApp no se ve afectado (usa Admin SDK).</p>
+<p class="test"><b>Probar después:</b> Entrá, guardá datos del negocio y mirá conversaciones.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/centralbotar/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="16">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t16" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// CentralBotAR — Reglas Firestore endurecidas. El servidor (webhook de WhatsApp) usa Admin SDK y no depende de estas reglas.
+// Publicar en Firebase Console → proyecto centralbotar → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // Usuario: su propio documento (negocioId y rol no se cambian solos)
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid)
+                        &amp;&amp; request.resource.data.negocioId == uid
+                        &amp;&amp; request.resource.data.rolNegocio == &#x27;owner&#x27;)
+                    || esAdmin();
+      allow update: if (esDueno(uid) &amp;&amp; !toca([&#x27;negocioId&#x27;,&#x27;rolNegocio&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    // Negocio (id = uid del dueño). Plan y consumo (features, mensajesEsteMes) solo los cambia el admin o el servidor.
+    match /negocios/{nid} {
+      allow get: if esDueno(nid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(nid)
+                        &amp;&amp; request.resource.data.ownerUid == request.auth.uid
+                        &amp;&amp; request.resource.data.features == {&#x27;limiteMensajesMes&#x27;: 200, &#x27;handoffNivel&#x27;: &#x27;medio&#x27;}
+                        &amp;&amp; request.resource.data.mensajesEsteMes == 0)
+                    || esAdmin();
+      allow update: if (esDueno(nid) &amp;&amp; !toca([&#x27;features&#x27;,&#x27;mensajesEsteMes&#x27;,&#x27;ownerUid&#x27;])) || esAdmin();
+      allow delete: if esAdmin();
+
+      // Conversaciones y mensajes (los escribe el servidor; el dueño las lee, responde y las restaura desde backup)
+      match /conversaciones/{cid}/{sub=**} {
+        allow read, write: if esDueno(nid);
+        allow read: if esAdmin();
+      }
+      match /conversaciones/{cid} {
+        allow read, write: if esDueno(nid);
+        allow read: if esAdmin();
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a17">
+<div class="top"><h2>TimbrAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>timbrear-cdc41</code> · Archivo: <code>qa/rules/timbrear.rules</code></p>
+<p>Conservadoras. Limitación: teléfonos del directorio visibles para visitantes (cambio de app pendiente).</p>
+<p class="test"><b>Probar después:</b> Hacé una llamada de prueba visitante → residente.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/timbrear-cdc41/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="17">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t17" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// TimbrAR — Reglas Firestore (conservadoras). Visitantes y residentes entran con sesión anónima y un link; el servidor de push usa Admin SDK.
+// Publicar en Firebase Console → proyecto timbrear-cdc41 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// LIMITACIÓN CONOCIDA: el directorio de departamentos incluye teléfono y token de aviso y lo lee cualquier visitante del edificio;
+// resolverlo requiere mover esos datos a un documento privado (cambio de la app, pendiente).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function soloCambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // Edificios y departamentos: se crean desde la pantalla de configuración (solo alta); modifica el admin
+    // y el residente puede activar su depto / registrar su token de aviso.
+    match /edificios/{eid} {
+      allow read: if logueado();
+      allow create: if logueado();
+      allow update, delete: if esAdmin();
+
+      match /departamentos/{did} {
+        allow read: if logueado();
+        allow create: if logueado();
+        allow update: if esAdmin()
+          || (logueado() &amp;&amp; soloCambia([&#x27;fcmToken&#x27;,&#x27;tokenEn&#x27;,&#x27;activado&#x27;,&#x27;nombreReal&#x27;,&#x27;activadoEn&#x27;]));
+        allow delete: if esAdmin();
+      }
+    }
+
+    // Sesiones de llamada: el visitante crea &quot;llamando&quot;; luego solo cambian estado y datos de la llamada
+    match /sesiones/{sid} {
+      allow read: if logueado();
+      allow create: if logueado()
+        &amp;&amp; request.resource.data.estado == &#x27;llamando&#x27;
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;edificioId&#x27;,&#x27;edificioNombre&#x27;,&#x27;deptoId&#x27;,&#x27;deptoEtiqueta&#x27;,&#x27;estado&#x27;,&#x27;creadaEn&#x27;]);
+      allow update: if logueado()
+        &amp;&amp; soloCambia([&#x27;estado&#x27;,&#x27;motivoRechazo&#x27;,&#x27;puertaAbierta&#x27;,&#x27;abiertaEn&#x27;,&#x27;fotoUrl&#x27;,&#x27;fotoEn&#x27;])
+        &amp;&amp; request.resource.data.estado in [&#x27;llamando&#x27;,&#x27;activa&#x27;,&#x27;rechazada&#x27;,&#x27;finalizada&#x27;];
+      allow delete: if esAdmin();
+
+      match /mensajes/{mid} {
+        allow read: if logueado();
+        allow create: if logueado() &amp;&amp; request.resource.data.size() &lt;= 12;
+        allow update, delete: if false;
+      }
+    }
+
+    match /fcmTokens/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a18">
+<div class="top"><h2>ComprAZona</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>ravenmarket-c2739</code> · Archivo: <code>qa/rules/comprazona.rules</code></p>
+<p>Igual que la versión 0.2 pero con admin de email verificado.</p>
+<p class="test"><b>Probar después:</b> Hacé un pedido de prueba.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/ravenmarket-c2739/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="18">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t18" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// ComprAZona — Reglas Firestore (versión 0.2 + admin con email verificado + registro de errores + raíz cerrada).
+// Publicar en Firebase Console → proyecto ravenmarket-c2739 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esAdmin() {
+      return request.auth != null
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+
+    function emailVerificado() {
+      return request.auth != null
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+
+    function esUsuarioEmpresa(tenantId, empresaId) {
+      return request.auth != null &amp;&amp;
+        get(/databases/$(database)/documents/tenants/$(tenantId)/usuarios/$(request.auth.uid)).data.empresaId == empresaId;
+    }
+
+    function pedidoValido() {
+      let d = request.resource.data;
+      return d.clienteUid == request.auth.uid
+        &amp;&amp; d.direccion is string &amp;&amp; d.direccion.size() &gt; 3 &amp;&amp; d.direccion.size() &lt; 300
+        &amp;&amp; d.items is list &amp;&amp; d.items.size() &gt; 0 &amp;&amp; d.items.size() &lt;= 20
+        &amp;&amp; (!(&#x27;nota&#x27; in d)        || (d.nota is string        &amp;&amp; d.nota.size() &lt; 400))
+        &amp;&amp; (!(&#x27;clienteNombre&#x27; in d) || (d.clienteNombre is string &amp;&amp; d.clienteNombre.size() &lt; 100))
+        &amp;&amp; (!(&#x27;clienteTelefono&#x27; in d) || (d.clienteTelefono is string &amp;&amp; d.clienteTelefono.size() &lt; 30))
+        &amp;&amp; d.total is number &amp;&amp; d.total &gt; 0 &amp;&amp; d.total &lt; 10000000
+        &amp;&amp; d.estado == &#x27;enviado&#x27;;
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if true;
+      allow write: if esAdmin();
+
+      match /categorias/{catId} {
+        allow read: if true;
+        allow write: if esAdmin();
+      }
+
+      match /empresas/{empresaId} {
+        allow read: if true;
+        allow write: if esAdmin() || esUsuarioEmpresa(tenantId, empresaId);
+
+        match /productos/{prodId} {
+          allow read: if true;
+          allow write: if esAdmin() || esUsuarioEmpresa(tenantId, empresaId);
+        }
+      }
+
+      match /pedidos/{pedidoId} {
+        // Solo cuentas de Google verificadas pueden crear pedidos
+        // con validación de campos (anti-spam y anti-XSS en Firestore)
+        allow create: if emailVerificado() &amp;&amp; pedidoValido();
+
+        allow read: if request.auth != null &amp;&amp; (
+          resource.data.clienteUid == request.auth.uid
+          || esAdmin()
+          || esUsuarioEmpresa(tenantId, resource.data.empresaId));
+
+        allow update: if esAdmin() || esUsuarioEmpresa(tenantId, resource.data.empresaId);
+        allow delete: if esAdmin();
+      }
+
+      match /usuarios/{uid} {
+        allow read: if request.auth != null &amp;&amp; (request.auth.uid == uid || esAdmin());
+        allow create: if request.auth != null &amp;&amp; request.auth.uid == uid
+          &amp;&amp; request.resource.data.rol == &#x27;cliente&#x27;
+          &amp;&amp; !(&#x27;empresaId&#x27; in request.resource.data);
+        allow update: if esAdmin() || (request.auth.uid == uid
+          &amp;&amp; request.resource.data.rol == resource.data.rol
+          &amp;&amp; request.resource.data.get(&#x27;empresaId&#x27;,&#x27;&#x27;) == resource.data.get(&#x27;empresaId&#x27;,&#x27;&#x27;));
+        allow delete: if esAdmin();
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if request.auth != null;
+      allow read, delete: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a19">
+<div class="top"><h2>PeloteAR</h2><span class="badge b-pend">Para pegar</span></div>
+<p class="meta">Proyecto: <code>pelotear-1f37e</code> · Archivo: <code>qa/rules/pelotear.rules</code></p>
+<p>Solo registro de errores.</p>
+<p class="test"><b>Probar después:</b> Abrí la app.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/pelotear-1f37e/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="19">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t19" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+// PeloteAR — Reglas Firestore. La app solo guarda el registro de errores en la base de datos.
+// Publicar en Firebase Console → proyecto pelotear-1f37e → Firestore Database → Reglas → pegar TODO → Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /errores/{id} {
+      allow create: if request.auth != null;
+      allow read, delete: if request.auth != null
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a20">
+<div class="top"><h2>ManejAR</h2><span class="badge b-rev">Opcional</span></div>
+<p class="meta">Proyecto: <code>manejar-dfdd4</code> · Archivo: <code>qa/rules/manejar.rules</code></p>
+<p>Ya estaban en el repo con admin verificado. Pegarlas de nuevo es seguro.</p>
+<p class="test"><b>Probar después:</b> Entrá y abrí un vehículo.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/manejar-dfdd4/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="20">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t20" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Administrador: cuenta con email verificado. El PIN de la app es solo la puerta visual; el permiso real es este.
+    function esAdmin() {
+      return request.auth != null
+          &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+          &amp;&amp; request.auth.token.email_verified == true;
+    }
+
+    // ===== CUENTAS =====
+    match /usuarios/{uid} {
+      allow get: if request.auth != null &amp;&amp; (request.auth.uid == uid || esAdmin());
+      allow list: if esAdmin();
+
+      // Alta: solo la propia cuenta, siempre en estado demo y con vencimiento de hasta ~14 días (margen por reloj del teléfono)
+      allow create: if request.auth != null
+                    &amp;&amp; request.auth.uid == uid
+                    &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;, &#x27;nombre&#x27;, &#x27;estado&#x27;, &#x27;vence&#x27;, &#x27;creado&#x27;])
+                    &amp;&amp; request.resource.data.estado == &#x27;demo&#x27;
+                    &amp;&amp; request.resource.data.email == request.auth.token.email
+                    &amp;&amp; request.resource.data.vence is number
+                    &amp;&amp; request.resource.data.vence &lt;= request.time.toMillis() + 15 * 86400000;
+
+      // Estado, vencimiento, pagos y notas: SOLO el administrador. El usuario puede cambiar únicamente su nombre.
+      allow update: if esAdmin()
+                    || (request.auth != null
+                        &amp;&amp; request.auth.uid == uid
+                        &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;nombre&#x27;]));
+      allow delete: if false;
+
+      // Copia de datos del usuario en la nube
+      match /registros/{rid} {
+        allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;
+      }
+
+      // Pagos registrados a mano por el administrador
+      match /pagos/{pid} {
+        allow read: if esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == uid);
+        allow write: if esAdmin();
+      }
+    }
+
+    // ===== FLOTAS (plan flota: el dueño ve a sus choferes) =====
+    match /flotas/{flotaId} {
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create: if request.auth != null
+                    &amp;&amp; request.resource.data.owner == request.auth.uid
+                    &amp;&amp; request.resource.data.limiteChoferes == 2;
+      allow update: if request.auth != null &amp;&amp; (
+          (resource.data.owner == request.auth.uid
+            &amp;&amp; request.resource.data.limiteChoferes == resource.data.limiteChoferes
+            &amp;&amp; request.resource.data.owner == resource.data.owner)
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;choferes&#x27;])
+            &amp;&amp; request.resource.data.choferes.diff(resource.data.choferes).affectedKeys().hasOnly([request.auth.uid])
+            &amp;&amp; request.resource.data.choferes.keys().size() &lt;= resource.data.limiteChoferes)
+        );
+      allow delete: if false;
+
+      match /registros/{regId} {
+        allow read: if request.auth != null
+                    &amp;&amp; get(/databases/$(database)/documents/flotas/$(flotaId)).data.owner == request.auth.uid;
+        allow create, update: if request.auth != null
+                    &amp;&amp; request.resource.data.choferUid == request.auth.uid
+                    &amp;&amp; regId.matches(&#x27;^&#x27; + request.auth.uid + &#x27;_.*&#x27;)
+                    &amp;&amp; (request.auth.uid in get(/databases/$(database)/documents/flotas/$(flotaId)).data.choferes);
+        allow delete: if request.auth != null
+                    &amp;&amp; resource.data.choferUid == request.auth.uid;
+      }
+    }
+  }
+}
+</textarea></details>
+</section><section class="card" id="a21">
+<div class="top"><h2>GasAR</h2><span class="badge b-rev">Opcional</span></div>
+<p class="meta">Proyecto: <code>gasar-ee15b</code> · Archivo: <code>qa/rules/gasar.rules</code></p>
+<p>Ya estaban en el repo con admin verificado. Pegarlas de nuevo es seguro.</p>
+<p class="test"><b>Probar después:</b> Entrá como admin y abrí una ubicación.</p>
+<div class="btns"><a class="btn" href="https://console.firebase.google.com/project/gasar-ee15b/firestore/databases/-default-/rules" target="_blank" rel="noopener">1. Abrir Firebase → Reglas</a>
+<button class="btn sec" data-i="21">2. Copiar reglas</button></div>
+<details><summary>Ver el código completo</summary><textarea id="t21" readonly rows="14" spellcheck="false">rules_version = &#x27;2&#x27;;
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function esRaven() {
+      return signedIn()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function tienePerfil() {
+      return signedIn() &amp;&amp; exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+    function perfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    function activo(t) { return tienePerfil() &amp;&amp; perfil().activo == true &amp;&amp; perfil().tenantId == t; }
+    function esAdminDe(t) {
+      return esRaven() || (activo(t) &amp;&amp; perfil().rol in [&#x27;administrador&#x27;,&#x27;administracion&#x27;]);
+    }
+    function esDueno(t) {
+      return esRaven() || (activo(t) &amp;&amp; perfil().rol == &#x27;administrador&#x27;);
+    }
+    function esDeUbicacion(t, u) {
+      return activo(t) &amp;&amp; perfil().ubicacionId != null &amp;&amp; perfil().ubicacionId == u;
+    }
+
+    function esRev(t) { return activo(t) &amp;&amp; perfil().rol == &#x27;vendedor_revendedores&#x27;; }
+
+    match /usuarios/{u} {
+      allow read: if signedIn() &amp;&amp; (request.auth.uid == u || esRaven()
+        || (tienePerfil() &amp;&amp; perfil().tenantId == resource.data.tenantId
+            &amp;&amp; perfil().rol in [&#x27;administrador&#x27;,&#x27;administracion&#x27;]));
+      allow create: if esRaven() || esDueno(request.resource.data.tenantId);
+      allow update: if esRaven() || (esDueno(resource.data.tenantId)
+        &amp;&amp; request.resource.data.tenantId == resource.data.tenantId);
+      allow delete: if false;
+    }
+
+    match /tenants/{t} {
+      allow read: if esRaven() || activo(t);
+      allow create, update: if esRaven();
+      allow delete: if false;
+
+      match /productos/{id}    { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+      match /marcas/{id}       { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+      match /ubicaciones/{id}  { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+
+      match /saldosStock/{id} {
+        allow read: if esAdminDe(t) || (activo(t) &amp;&amp; resource.data.ubicacionId == perfil().ubicacionId);
+        allow create, update: if esAdminDe(t)
+          || esDeUbicacion(t, request.resource.data.ubicacionId);
+        allow delete: if false;
+      }
+
+      match /movimientosStock/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          &amp;&amp; request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /movimientosCaja/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          &amp;&amp; request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /ventas/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          &amp;&amp; request.resource.data.uid == request.auth.uid
+          &amp;&amp; request.resource.data.estado == &#x27;ok&#x27;;
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /turnosCaja/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if esAdminDe(t) || (esDeUbicacion(t, request.resource.data.ubicacionId)
+          &amp;&amp; request.resource.data.uid == request.auth.uid
+          &amp;&amp; request.resource.data.estado == &#x27;abierta&#x27;);
+        allow update: if esAdminDe(t) || (esDeUbicacion(t, resource.data.ubicacionId)
+          &amp;&amp; resource.data.estado == &#x27;abierta&#x27;
+          &amp;&amp; request.resource.data.estado == &#x27;cerrada&#x27;
+          &amp;&amp; request.resource.data.ubicacionId == resource.data.ubicacionId);
+        allow delete: if false;
+      }
+
+      match /cargas/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.origenId) || esDeUbicacion(t, resource.data.destinoId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.origenId))
+          &amp;&amp; request.resource.data.uid == request.auth.uid
+          &amp;&amp; request.resource.data.estado == &#x27;en_transito&#x27;;
+        allow update: if esAdminDe(t) || (esDeUbicacion(t, resource.data.destinoId)
+          &amp;&amp; resource.data.estado == &#x27;en_transito&#x27;
+          &amp;&amp; request.resource.data.estado == &#x27;recibida&#x27;
+          &amp;&amp; request.resource.data.destinoId == resource.data.destinoId
+          &amp;&amp; request.resource.data.origenId == resource.data.origenId);
+        allow delete: if false;
+      }
+
+      match /rendiciones/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if esDeUbicacion(t, request.resource.data.ubicacionId)
+          &amp;&amp; request.resource.data.uid == request.auth.uid
+          &amp;&amp; request.resource.data.estado == &#x27;pendiente&#x27;;
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /revendedores/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow write: if esAdminDe(t);
+      }
+      match /ctaSaldos/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create, update: if esAdminDe(t) || esRev(t);
+        allow delete: if false;
+      }
+      match /ctaEnvases/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create, update: if esAdminDe(t) || esRev(t);
+        allow delete: if false;
+      }
+      match /ctaCte/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create: if (esAdminDe(t) || esRev(t)) &amp;&amp; request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /proveedores/{id} { allow read, write: if esAdminDe(t); }
+      match /provSaldos/{id}  { allow read, write: if esAdminDe(t); }
+      match /provCte/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if esAdminDe(t) &amp;&amp; request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+      match /compras/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if esAdminDe(t) &amp;&amp; request.resource.data.uid == request.auth.uid &amp;&amp; request.resource.data.estado == &#x27;ok&#x27;;
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+      match /gastos/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          &amp;&amp; request.resource.data.uid == request.auth.uid &amp;&amp; request.resource.data.estado == &#x27;ok&#x27;;
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /auditoria/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if activo(t) || esRaven();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
+</textarea></details>
+</section>
+</main><script>
+document.querySelectorAll('button[data-i]').forEach(function(b){b.addEventListener('click',function(){
+ var t=document.getElementById('t'+b.dataset.i);var done=function(){b.textContent='✅ Copiado';setTimeout(function(){b.textContent='2. Copiar reglas'},2500)};
+ var fb=function(){var d=b.closest('section').querySelector('details');d.open=true;t.focus();t.select();try{document.execCommand('copy');done()}catch(e){b.textContent='Seleccioná y copiá el texto'}};
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t.value).then(done,fb)}else fb();})});
+</script></body></html>

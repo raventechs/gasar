@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function esRaven() {
+      return signedIn()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function tienePerfil() {
+      return signedIn() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+    function perfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    function activo(t) { return tienePerfil() && perfil().activo == true && perfil().tenantId == t; }
+    function esAdminDe(t) {
+      return esRaven() || (activo(t) && perfil().rol in ['administrador','administracion']);
+    }
+    function esDueno(t) {
+      return esRaven() || (activo(t) && perfil().rol == 'administrador');
+    }
+    function esDeUbicacion(t, u) {
+      return activo(t) && perfil().ubicacionId != null && perfil().ubicacionId == u;
+    }
+
+    function esRev(t) { return activo(t) && perfil().rol == 'vendedor_revendedores'; }
+
+    match /usuarios/{u} {
+      allow read: if signedIn() && (request.auth.uid == u || esRaven()
+        || (tienePerfil() && perfil().tenantId == resource.data.tenantId
+            && perfil().rol in ['administrador','administracion']));
+      allow create: if esRaven() || esDueno(request.resource.data.tenantId);
+      allow update: if esRaven() || (esDueno(resource.data.tenantId)
+        && request.resource.data.tenantId == resource.data.tenantId);
+      allow delete: if false;
+    }
+
+    match /tenants/{t} {
+      allow read: if esRaven() || activo(t);
+      allow create, update: if esRaven();
+      allow delete: if false;
+
+      match /productos/{id}    { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+      match /marcas/{id}       { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+      match /ubicaciones/{id}  { allow read: if esRaven() || activo(t); allow write: if esAdminDe(t); }
+
+      match /saldosStock/{id} {
+        allow read: if esAdminDe(t) || (activo(t) && resource.data.ubicacionId == perfil().ubicacionId);
+        allow create, update: if esAdminDe(t)
+          || esDeUbicacion(t, request.resource.data.ubicacionId);
+        allow delete: if false;
+      }
+
+      match /movimientosStock/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /movimientosCaja/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /ventas/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.estado == 'ok';
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /turnosCaja/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if esAdminDe(t) || (esDeUbicacion(t, request.resource.data.ubicacionId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.estado == 'abierta');
+        allow update: if esAdminDe(t) || (esDeUbicacion(t, resource.data.ubicacionId)
+          && resource.data.estado == 'abierta'
+          && request.resource.data.estado == 'cerrada'
+          && request.resource.data.ubicacionId == resource.data.ubicacionId);
+        allow delete: if false;
+      }
+
+      match /cargas/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.origenId) || esDeUbicacion(t, resource.data.destinoId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.origenId))
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.estado == 'en_transito';
+        allow update: if esAdminDe(t) || (esDeUbicacion(t, resource.data.destinoId)
+          && resource.data.estado == 'en_transito'
+          && request.resource.data.estado == 'recibida'
+          && request.resource.data.destinoId == resource.data.destinoId
+          && request.resource.data.origenId == resource.data.origenId);
+        allow delete: if false;
+      }
+
+      match /rendiciones/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if esDeUbicacion(t, request.resource.data.ubicacionId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.estado == 'pendiente';
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /revendedores/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow write: if esAdminDe(t);
+      }
+      match /ctaSaldos/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create, update: if esAdminDe(t) || esRev(t);
+        allow delete: if false;
+      }
+      match /ctaEnvases/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create, update: if esAdminDe(t) || esRev(t);
+        allow delete: if false;
+      }
+      match /ctaCte/{id} {
+        allow read: if esAdminDe(t) || esRev(t);
+        allow create: if (esAdminDe(t) || esRev(t)) && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /proveedores/{id} { allow read, write: if esAdminDe(t); }
+      match /provSaldos/{id}  { allow read, write: if esAdminDe(t); }
+      match /provCte/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if esAdminDe(t) && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+      match /compras/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if esAdminDe(t) && request.resource.data.uid == request.auth.uid && request.resource.data.estado == 'ok';
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+      match /gastos/{id} {
+        allow read: if esAdminDe(t) || esDeUbicacion(t, resource.data.ubicacionId);
+        allow create: if (esAdminDe(t) || esDeUbicacion(t, request.resource.data.ubicacionId))
+          && request.resource.data.uid == request.auth.uid && request.resource.data.estado == 'ok';
+        allow update: if esAdminDe(t);
+        allow delete: if false;
+      }
+
+      match /auditoria/{id} {
+        allow read: if esAdminDe(t);
+        allow create: if activo(t) || esRaven();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
