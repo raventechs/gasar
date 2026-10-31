@@ -33,9 +33,15 @@ service cloud.firestore {
         || (esDueno(uid)
             && request.resource.data.get('activo', true) == true
             && !('features' in request.resource.data)
-            && !('limiteSucursales' in request.resource.data));
+            && !('limiteSucursales' in request.resource.data)
+            && (!('demoHasta' in request.resource.data) || request.resource.data.demoHasta <= request.time + duration.value(15, 'd')));
+      // El dueño no toca activo / limiteSucursales / features, y el fin de la prueba (demoHasta) solo puede fijarlo una vez (máx. 15 días)
       allow update: if esAdmin()
-        || (esDueno(uid) && !toca(['activo','limiteSucursales','features']));
+        || (esDueno(uid) && !toca(['activo','limiteSucursales','features','demoHasta']))
+        || (esDueno(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['demoHasta'])
+            && !('demoHasta' in resource.data)
+            && request.resource.data.demoHasta <= request.time + duration.value(15, 'd'));
       allow delete: if esAdmin();
     }
 

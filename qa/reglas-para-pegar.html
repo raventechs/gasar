@@ -151,7 +151,8 @@ service cloud.firestore {
     }
     // Plan inicial que la app crea sola al primer ingreso (plan básico)
     function clienteInicialValido(email) {
-      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;])
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;,&#x27;demoHasta&#x27;])
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))
         &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
         &amp;&amp; request.resource.data.activo == true
         &amp;&amp; request.resource.data.limiteSucursales == 1
@@ -166,11 +167,15 @@ service cloud.firestore {
       allow get: if esAdmin() || miEmail(email);
       allow list: if esAdmin();
       allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
-      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
       allow update: if esAdmin()
         || (miEmail(email)
             &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
-            &amp;&amp; request.resource.data.uid == request.auth.uid);
+            &amp;&amp; request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;demoHasta&#x27;])
+            &amp;&amp; !(&#x27;demoHasta&#x27; in resource.data)
+            &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
       allow delete: if esAdmin();
     }
 
@@ -255,7 +260,8 @@ service cloud.firestore {
     function cajeroDeSuc(owner, sid) { return esCajero(owner) &amp;&amp; get(cajeroRef(owner)).data.sucursalId == sid; }
     // Plan inicial que la app crea sola al primer ingreso (plan básico)
     function clienteInicialValido(email) {
-      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;])
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;,&#x27;demoHasta&#x27;])
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))
         &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
         &amp;&amp; request.resource.data.activo == true
         &amp;&amp; request.resource.data.limiteSucursales == 1
@@ -270,11 +276,15 @@ service cloud.firestore {
       allow get: if esAdmin() || miEmail(email);
       allow list: if esAdmin();
       allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
-      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
       allow update: if esAdmin()
         || (miEmail(email)
             &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
-            &amp;&amp; request.resource.data.uid == request.auth.uid);
+            &amp;&amp; request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;demoHasta&#x27;])
+            &amp;&amp; !(&#x27;demoHasta&#x27; in resource.data)
+            &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
       allow delete: if esAdmin();
     }
 
@@ -363,10 +373,19 @@ service cloud.firestore {
     // Registro de usuarios (para el panel de actividad): cada dueño escribe solo el suyo; el admin lee todos.
     match /usuarios/{uid} {
       allow read: if esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == uid);
-      allow create, update: if request.auth != null
+      // El dueño escribe su registro; el fin de la prueba gratis (demoHasta) solo puede fijarlo una vez (máx. 15 días). El admin lo cambia.
+      allow create: if request.auth != null
         &amp;&amp; request.auth.uid == uid
         &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
-        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;]);
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;,&#x27;demoHasta&#x27;])
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+      allow update: if esAdmin()
+        || (request.auth != null
+            &amp;&amp; request.auth.uid == uid
+            &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
+            &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;,&#x27;demoHasta&#x27;])
+            &amp;&amp; (request.resource.data.get(&#x27;demoHasta&#x27;, null) == resource.data.get(&#x27;demoHasta&#x27;, null)
+                || (!(&#x27;demoHasta&#x27; in resource.data) &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))));
       allow delete: if esAdmin();
     }
 
@@ -427,10 +446,19 @@ service cloud.firestore {
     // Registro de usuarios (para el panel de actividad): cada dueño escribe solo el suyo; el admin lee todos.
     match /usuarios/{uid} {
       allow read: if esAdmin() || (request.auth != null &amp;&amp; request.auth.uid == uid);
-      allow create, update: if request.auth != null
+      // El dueño escribe su registro; el fin de la prueba gratis (demoHasta) solo puede fijarlo una vez (máx. 15 días). El admin lo cambia.
+      allow create: if request.auth != null
         &amp;&amp; request.auth.uid == uid
         &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
-        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;]);
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;,&#x27;demoHasta&#x27;])
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+      allow update: if esAdmin()
+        || (request.auth != null
+            &amp;&amp; request.auth.uid == uid
+            &amp;&amp; request.auth.token.firebase.sign_in_provider != &#x27;anonymous&#x27;
+            &amp;&amp; request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;alta&#x27;,&#x27;ultimoAcceso&#x27;,&#x27;app&#x27;,&#x27;demoHasta&#x27;])
+            &amp;&amp; (request.resource.data.get(&#x27;demoHasta&#x27;, null) == resource.data.get(&#x27;demoHasta&#x27;, null)
+                || (!(&#x27;demoHasta&#x27; in resource.data) &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))));
       allow delete: if esAdmin();
     }
 
@@ -1360,9 +1388,15 @@ service cloud.firestore {
         || (esDueno(uid)
             &amp;&amp; request.resource.data.get(&#x27;activo&#x27;, true) == true
             &amp;&amp; !(&#x27;features&#x27; in request.resource.data)
-            &amp;&amp; !(&#x27;limiteSucursales&#x27; in request.resource.data));
+            &amp;&amp; !(&#x27;limiteSucursales&#x27; in request.resource.data)
+            &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;)));
+      // El dueño no toca activo / limiteSucursales / features, y el fin de la prueba (demoHasta) solo puede fijarlo una vez (máx. 15 días)
       allow update: if esAdmin()
-        || (esDueno(uid) &amp;&amp; !toca([&#x27;activo&#x27;,&#x27;limiteSucursales&#x27;,&#x27;features&#x27;]));
+        || (esDueno(uid) &amp;&amp; !toca([&#x27;activo&#x27;,&#x27;limiteSucursales&#x27;,&#x27;features&#x27;,&#x27;demoHasta&#x27;]))
+        || (esDueno(uid)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;demoHasta&#x27;])
+            &amp;&amp; !(&#x27;demoHasta&#x27; in resource.data)
+            &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
       allow delete: if esAdmin();
     }
 
@@ -1460,6 +1494,45 @@ service cloud.firestore {
     function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
     function esCajero(owner) { return esAnonimo() &amp;&amp; exists(cajeroRef(owner)); }
     function cajeroDeSuc(owner, sid) { return esCajero(owner) &amp;&amp; get(cajeroRef(owner)).data.sucursalId == sid; }
+
+    function miEmail(email) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.token.email != null
+        &amp;&amp; request.auth.token.email.lower() == email.lower();
+    }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;,&#x27;demoHasta&#x27;])
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))
+        &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
+        &amp;&amp; request.resource.data.activo == true
+        &amp;&amp; request.resource.data.limiteSucursales == 1
+        &amp;&amp; request.resource.data.features.keys().hasOnly([&#x27;gastos&#x27;,&#x27;ticket&#x27;,&#x27;proveedores&#x27;])
+        &amp;&amp; request.resource.data.features.gastos == false
+        &amp;&amp; request.resource.data.features.ticket == false
+        &amp;&amp; request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
+      allow update: if esAdmin()
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
+            &amp;&amp; request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;demoHasta&#x27;])
+            &amp;&amp; !(&#x27;demoHasta&#x27; in resource.data)
+            &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;
+    }
 
     // Link de sucursal / código del cajero
     match /barbearLinks/{cod} {
