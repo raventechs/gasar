@@ -1,0 +1,121 @@
+rules_version = '2';
+// SaludAR — Reglas Firestore endurecidas (datos de salud).
+// Publicar en Firebase Console → proyecto saludar-b565d → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con invitaciones que guardan "codigo" en el miembro (ya publicada en main).
+// Privacidad: el admin NO puede leer estudios, turnos, médicos, historial ni medicamentos de los pacientes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function perfilDoc(pid) { return get(/databases/$(database)/documents/perfiles/$(pid)).data; }
+    function esTitular(pid) { return logueado() && perfilDoc(pid).titularUid == request.auth.uid; }
+    function miembroDoc(pid, uid) { return /databases/$(database)/documents/perfiles/$(pid)/miembros/$(uid); }
+    function esMiembro(pid) { return logueado() && exists(miembroDoc(pid, request.auth.uid)); }
+    function esEditor(pid) { return esMiembro(pid) && get(miembroDoc(pid, request.auth.uid)).data.rol == 'editor'; }
+    function puedeLeerPerfil(pid) { return esTitular(pid) || esMiembro(pid); }
+    function puedeEscribirPerfil(pid) { return esTitular(pid) || esEditor(pid); }
+
+    // Alta de cuenta: demo, sin baneo, sin permisos especiales. El familiar invitado se crea sin status.
+    function altaValida() {
+      let d = request.resource.data;
+      return (!('banned' in d) || d.banned == false)
+        && (!('status' in d) || d.status == 'demo')
+        && (!('isAdmin' in d) || d.isAdmin == false)
+        && (!('features' in d))
+        && (!('familiarHabilitado' in d) || d.familiarHabilitado == false)
+        && (!('limiteMiembros' in d))
+        && (!('titularUid' in d))
+        && (!('esFamiliar' in d) || d.esFamiliar == false || d.plan == 'familiar')
+        && (!('demoExpiry' in d) || d.demoExpiry == null || d.demoExpiry <= request.time + duration.value(15, 'd'));
+    }
+
+    // Usuarios
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) && altaValida()) || esAdmin();
+      allow update: if esAdmin()
+        || (esDueno(uid)
+            && !toca(['status','banned','demoExpiry','isAdmin','features','familiarHabilitado','limiteMiembros','titularUid'])
+            // plan/esFamiliar solo para pasar a "familiar invitado" (no otorga permisos extra)
+            && (!toca(['plan','esFamiliar']) || (request.resource.data.plan == 'familiar' && request.resource.data.esFamiliar == true)));
+      allow delete: if esAdmin();
+    }
+
+    // Invitaciones: se leen por id (sin cuenta, antes de registrarse); no se listan.
+    match /invitacionesSalud/{code} {
+      allow get: if true;
+      allow create: if logueado()
+        && request.resource.data.titularUid == request.auth.uid
+        && request.resource.data.usado == false
+        && esTitular(request.resource.data.perfilId);
+      // Se marca como usada UNA vez (usado false -> true)
+      allow update: if logueado()
+        && resource.data.usado == false
+        && request.resource.data.usado == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usado','usadoPor','usadoAt']);
+      allow delete: if logueado() && resource.data.titularUid == request.auth.uid;
+    }
+
+    // Búsqueda de "mis perfiles como miembro" (collectionGroup): cada uno ve solo sus propias membresías
+    match /{path=**}/miembros/{mid} {
+      allow read: if logueado() && resource.data.uid == request.auth.uid;
+    }
+
+    match /perfiles/{pid} {
+      allow read: if (logueado() && resource.data.titularUid == request.auth.uid) || esMiembro(pid) || esAdmin();
+      allow create: if esDueno(request.resource.data.titularUid);
+      allow update: if (logueado() && resource.data.titularUid == request.auth.uid
+                         && request.resource.data.titularUid == resource.data.titularUid)
+        || (esEditor(pid) && !toca(['titularUid','titularNombre','cantidadMiembros']))
+        // alta/baja de integrante: solo el contador (±1)
+        || (esMiembro(pid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantidadMiembros'])
+            && (request.resource.data.cantidadMiembros - resource.data.cantidadMiembros == 1
+                || request.resource.data.cantidadMiembros - resource.data.cantidadMiembros == -1));
+      allow delete: if (logueado() && resource.data.titularUid == request.auth.uid) || esAdmin();
+
+      match /miembros/{mid} {
+        allow read: if puedeLeerPerfil(pid);
+        // Alta: con invitación válida (sin usar, vigente, mismo perfil y rol) o por migración del vínculo viejo
+        allow create: if logueado() && request.auth.uid == mid
+          && request.resource.data.uid == request.auth.uid
+          && (
+            (request.resource.data.keys().hasAny(['codigo'])
+              && get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.perfilId == pid
+              && get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.usado == false
+              && get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.expiry > request.time
+              && get(/databases/$(database)/documents/invitacionesSalud/$(request.resource.data.codigo)).data.rol == request.resource.data.rol)
+            || (request.resource.data.rol == 'editor'
+              && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('esFamiliar', false) == true
+              && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('titularUid', '') == perfilDoc(pid).titularUid)
+          );
+        allow delete: if logueado() && (request.auth.uid == mid || esTitular(pid));
+      }
+
+      // Datos clínicos: leen titular y miembros; escriben titular y editores. El admin no accede.
+      match /{col}/{docId} {
+        allow read: if col in ['estudios','turnos','medicos','historial','medicamentos'] && puedeLeerPerfil(pid);
+        allow create, update, delete: if col in ['estudios','turnos','medicos','historial','medicamentos'] && puedeEscribirPerfil(pid);
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
