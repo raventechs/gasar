@@ -1,0 +1,108 @@
+rules_version = '2';
+// BarbeAR — Reglas Firestore endurecidas. Reservas públicas (sin cuenta) limitadas; cajero registrado por código de sucursal.
+// Publicar en Firebase Console → proyecto barbear-c482c → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros ya dentro deben volver a abrir su link una vez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(owner) { return logueado() && !esAnonimo() && request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
+    function esCajero(owner) { return esAnonimo() && exists(cajeroRef(owner)); }
+    function cajeroDeSuc(owner, sid) { return esCajero(owner) && get(cajeroRef(owner)).data.sucursalId == sid; }
+
+    // Link de sucursal / código del cajero
+    match /barbearLinks/{cod} {
+      allow get: if true;
+      allow list: if (logueado() && resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) && request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    match /negocios/{owner} {
+      // La página pública de reservas lee el negocio (nombre, horarios). Lista completa: solo admin.
+      allow get: if true;
+      allow list: if esAdmin();
+      allow create: if esDueno(owner)
+        && !('features' in request.resource.data) && !('limiteSucursales' in request.resource.data) && !('activo' in request.resource.data);
+      // El dueño NO puede cambiar su plan (features / limiteSucursales / activo); el admin sí
+      allow update: if esAdmin()
+        || (esDueno(owner) && !toca(['features','limiteSucursales','activo']));
+      allow delete: if esAdmin();
+
+      // Alta del cajero: solo con un código de SU negocio
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() && request.auth.uid == cid
+          && exists(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo))
+          && get(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo)).data.uid == owner
+          && get(/databases/$(database)/documents/barbearLinks/$(request.resource.data.codigo)).data.sucursalId == request.resource.data.sucursalId;
+        allow read: if esDueno(owner) || esAdmin() || (esAnonimo() && request.auth.uid == cid);
+        allow delete: if esDueno(owner);
+      }
+
+      // Reservas públicas: el cliente crea su turno (validado) pero NO puede leer los turnos de nadie
+      match /turnos/{tid} {
+        allow create: if request.resource.data.keys().hasOnly(['fecha','hora','barberoId','barberoNombre','servicioId','servicioNombre','servicioPrecio','clienteNombre','clienteTelefono','estado','origen','creadoEn'])
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.origen == 'cliente'
+          && request.resource.data.clienteNombre is string && request.resource.data.clienteNombre.size() <= 80
+          && request.resource.data.clienteTelefono is string && request.resource.data.clienteTelefono.size() <= 30
+          && request.resource.data.creadoEn == request.time
+          && exists(/databases/$(database)/documents/negocios/$(owner));
+      }
+
+      // Horarios ocupados (sin datos personales): lectura pública, alta pública solo si el horario está libre
+      match /ocupados/{oid} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['fecha','barberoId','hora'])
+          && oid == request.resource.data.fecha + '_' + request.resource.data.barberoId + '_' + request.resource.data.hora
+          && exists(/databases/$(database)/documents/negocios/$(owner));
+        allow update, delete: if esDueno(owner) || esCajero(owner);
+      }
+
+      // Catálogo público para reservar
+      match /barberos/{bid} {
+        allow read: if true;
+        allow write: if esDueno(owner);
+      }
+      match /productos/{pid} {
+        allow read: if true;
+        allow write: if esDueno(owner) || esCajero(owner);
+      }
+
+      // Resto de datos del negocio
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if esCajero(owner)
+          && col in ['insumos','proveedores','ventas','gastos','turnos','clientes'];
+        allow read: if esCajero(owner) && col in ['sucursales','configuracion'];
+      }
+
+      // Sucursales: el cajero opera SOLO en la suya
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if cajeroDeSuc(owner, sid) && col in ['ventas','gastos','turnos'];
+      }
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}

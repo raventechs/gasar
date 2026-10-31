@@ -1,0 +1,105 @@
+rules_version = '2';
+// LavAR — Reglas Firestore endurecidas. El cajero entra por código de sucursal y queda registrado como miembro de ESA sucursal.
+// Publicar en Firebase Console → proyecto lavar-b8b84 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros que ya estaban dentro deben volver a abrir su link una vez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function sucRef(sid) { return /databases/$(database)/documents/sucursales/$(sid); }
+    function duenoDeSuc(sid) { return exists(sucRef(sid)) && esDueno(get(sucRef(sid)).data.ownerUid); }
+    function cajeroDeSuc(sid) {
+      return esAnonimo()
+        && exists(/databases/$(database)/documents/sucursales/$(sid)/cajeros/$(request.auth.uid));
+    }
+    function puedeSuc(sid) { return duenoDeSuc(sid) || cajeroDeSuc(sid); }
+
+    // Configuración y plan del dueño: el dueño NO puede tocar activo / limiteSucursales / features (los maneja el admin)
+    match /config/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if esAdmin()
+        || (esDueno(uid)
+            && request.resource.data.get('activo', true) == true
+            && !('features' in request.resource.data)
+            && !('limiteSucursales' in request.resource.data));
+      allow update: if esAdmin()
+        || (esDueno(uid) && !toca(['activo','limiteSucursales','features']));
+      allow delete: if esAdmin();
+    }
+
+    // Sucursales
+    match /sucursales/{sid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+
+      // Alta del cajero: solo con un código de ESTA sucursal
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() && request.auth.uid == cid
+          && exists(/databases/$(database)/documents/lavArLinks/$(request.resource.data.codigo))
+          && get(/databases/$(database)/documents/lavArLinks/$(request.resource.data.codigo)).data.sucursalId == sid;
+        allow read: if duenoDeSuc(sid) || esAdmin() || (esAnonimo() && request.auth.uid == cid);
+        allow delete: if duenoDeSuc(sid);
+      }
+    }
+
+    // Links / códigos de sucursal y de empleado: se leen por código (antes de iniciar sesión); el dueño los lista y administra
+    match /lavArLinks/{codigo} {
+      allow get: if true;
+      allow list: if (logueado() && resource.data.ownerUid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Empleados (nómina): solo el dueño
+    match /empleados/{eid} {
+      allow read: if esDueno(resource.data.ownerUid) || duenoDeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Ventas y gastos: dueño de la sucursal o cajero registrado en ella
+    match /ventas/{vid} {
+      allow read: if puedeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if puedeSuc(request.resource.data.sucursalId);
+      allow update: if puedeSuc(resource.data.sucursalId) && request.resource.data.sucursalId == resource.data.sucursalId;
+      allow delete: if puedeSuc(resource.data.sucursalId);
+    }
+    match /gastos/{gid} {
+      allow read: if puedeSuc(resource.data.sucursalId) || esAdmin();
+      allow create: if puedeSuc(request.resource.data.sucursalId);
+      allow update: if puedeSuc(resource.data.sucursalId) && request.resource.data.sucursalId == resource.data.sucursalId;
+      allow delete: if puedeSuc(resource.data.sucursalId);
+    }
+
+    // Fidelización: el id del documento es "<sucursalId>_<patente>"
+    match /fidelizacion/{fid} {
+      allow read: if puedeSuc(fid.split('_')[0]) || esAdmin();
+      allow create: if puedeSuc(fid.split('_')[0]) && request.resource.data.sucursalId == fid.split('_')[0];
+      allow update: if puedeSuc(fid.split('_')[0]) && request.resource.data.sucursalId == fid.split('_')[0];
+      allow delete: if duenoDeSuc(fid.split('_')[0]);
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
