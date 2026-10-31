@@ -129,14 +129,19 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
         r.onsuccess=function(){var db=r.result;try{
           if(!db.objectStoreNames.contains('firebaseLocalStorage')){db.close();return;}
           var q=db.transaction('firebaseLocalStorage','readonly').objectStore('firebaseLocalStorage').getAll();
-          q.onsuccess=function(){(q.result||[]).forEach(function(it){var u=it&&it.value;
-            if(u&&u.email&&!u.isAnonymous&&(u.providerData||[]).some(function(p){return p.providerId==='google.com';}))ls('rt_google_email',u.email);});db.close();};
+          q.onsuccess=function(){var adm=false;(q.result||[]).forEach(function(it){var u=it&&it.value;
+            if(u&&u.email&&!u.isAnonymous&&(u.providerData||[]).some(function(p){return p.providerId==='google.com';}))ls('rt_google_email',u.email);
+            if(u&&u.email&&String(u.email).toLowerCase()==='rgaraventa@gmail.com'&&u.emailVerified===true)adm=true;});
+            try{if(adm)localStorage.setItem('rt_admin','1');else localStorage.removeItem('rt_admin');}catch(e){}
+            db.close();};
         }catch(e){try{db.close();}catch(x){}}};
       }).catch(function(){});
     }catch(e){}
   }
-  capturar();var n=0,t=setInterval(function(){capturar();if(++n>20)clearInterval(t);},4000);
+  capturar();setInterval(capturar,8000);document.addEventListener('visibilitychange',capturar);
   window.addEventListener('focus',capturar);
+  /* Puerta del panel interno: solo la cuenta admin (la seguridad real la dan las reglas de Firestore) */
+  window.rtIsAdmin=function(){capturar();return ls('rt_admin')==='1';};
   window.rtHasHint=function(){return !!ls('rt_google_email');};
   window.rtProv=function(p){var e=ls('rt_google_email');try{if(e&&p&&p.setCustomParameters)p.setCustomParameters({login_hint:e});}catch(x){}return p;};
   /* A — Google primero */
@@ -191,7 +196,7 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 'use strict';
 const VERSION='1.5.0-backup';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
-const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='2580';
+const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='';
 
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1026,7 +1031,7 @@ document.addEventListener('change',e=>{if(e.target.id==='vf'&&e.target.value){S.
 document.addEventListener('focusout',()=>setTimeout(render,50));
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw'||e.target.id==='em'))login()});
 window.addEventListener('online',()=>{S.online=true;render()});window.addEventListener('offline',()=>{S.online=false;render()});
-let taps=0,tapT;document.addEventListener('click',e=>{if(!e.target.closest('#logo'))return;taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,3000);if(taps>=5){taps=0;if(prompt('PIN')===ADMIN_PIN)alert('GasAR panel '+VERSION+'\nUsuario: '+(S.user?S.user.uid:'-')+'\nNegocio: '+(S.tid||'-')+'\nEn línea: '+S.online)}});
+let taps=0,tapT;document.addEventListener('click',e=>{if(!e.target.closest('#logo'))return;taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,3000);if(taps>=5){taps=0;if((window.rtIsAdmin&&window.rtIsAdmin()))alert('GasAR panel '+VERSION+'\nUsuario: '+(S.user?S.user.uid:'-')+'\nNegocio: '+(S.tid||'-')+'\nEn línea: '+S.online)}});
 document.documentElement.dataset.theme=LS.get('tema','light');
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw-gasar-admin.js').catch(()=>{}));
 setTimeout(()=>{if(!S.user)hideSplash()},4000);

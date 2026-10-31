@@ -135,7 +135,7 @@ input[type=text],input[type=email],input[type=password],input[type=number]{width
 'use strict';
 const VERSION='1.3.0-etapa4';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
-const ADMIN_PIN='2580';
+const ADMIN_PIN='';
 
 /* ---------- utilidades ---------- */
 const $=(s,r=document)=>r.querySelector(s);
@@ -759,7 +759,7 @@ document.addEventListener('input',e=>{const x=e.target;if(x.id==='fondo')S.tmp.f
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw'||e.target.id==='em'))login()});
 window.addEventListener('online',()=>{S.online=true;render()});window.addEventListener('offline',()=>{S.online=false;render()});
 // 5 toques en el logo → diagnóstico (PIN estándar)
-let taps=0,tapT;document.addEventListener('click',e=>{if(!e.target.closest('#logo'))return;taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,3000);if(taps>=5){taps=0;if(prompt('PIN')===ADMIN_PIN)alert('GasAR vendedor '+VERSION+'\nUsuario: '+(S.user?S.user.uid:'-')+'\nNegocio: '+(S.tid||'-')+'\nPunto: '+(S.ubi||'-')+'\nEn línea: '+S.online+'\nVentas sin enviar: '+S.pend)}});
+let taps=0,tapT;document.addEventListener('click',e=>{if(!e.target.closest('#logo'))return;taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,3000);if(taps>=5){taps=0;if((window.rtIsAdmin&&window.rtIsAdmin()))alert('GasAR vendedor '+VERSION+'\nUsuario: '+(S.user?S.user.uid:'-')+'\nNegocio: '+(S.tid||'-')+'\nPunto: '+(S.ubi||'-')+'\nEn línea: '+S.online+'\nVentas sin enviar: '+S.pend)}});
 document.documentElement.dataset.theme=LS.get('tema','light');
 // PWA
 let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(!LS.get('pwaNo',false))$('#pwa').style.display='flex'});
