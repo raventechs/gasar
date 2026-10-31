@@ -1,0 +1,106 @@
+rules_version = '2';
+// CarneAR — Reglas Firestore (FASE 2: el cajero queda atado a SU sucursal).
+// Publicar en Firebase Console → proyecto carnear-1d2c4 → Firestore Database → Reglas → pegar TODO → Publicar.
+// ORDEN: primero publicada la app (ya está en main) y recién después estas reglas. Los cajeros ya dentro deben volver a abrir su link una vez.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────── Funciones ─────────
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(owner) { return logueado() && !esAnonimo() && request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function miEmail(email) {
+      return logueado() && !esAnonimo() && request.auth.token.email != null
+        && request.auth.token.email.lower() == email.lower();
+    }
+    // Cajero registrado (por código de sucursal válido) en el negocio / en una sucursal puntual
+    function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
+    function esCajero(owner) { return esAnonimo() && exists(cajeroRef(owner)); }
+    function cajeroDeSuc(owner, sid) { return esCajero(owner) && get(cajeroRef(owner)).data.sucursalId == sid; }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly(['email','nombre','plan','activo','features','limiteSucursales','creadoEn','uid'])
+        && request.resource.data.plan == 'basico'
+        && request.resource.data.activo == true
+        && request.resource.data.limiteSucursales == 1
+        && request.resource.data.features.keys().hasOnly(['gastos','ticket','proveedores'])
+        && request.resource.data.features.gastos == false
+        && request.resource.data.features.ticket == false
+        && request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) && clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid (no cambia plan, activo ni features)
+      allow update: if esAdmin()
+        || (miEmail(email)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid'])
+            && request.resource.data.uid == request.auth.uid);
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Links de sucursal (código del cajero) ─────────
+    match /carnearLinks/{cod} {
+      allow get: if logueado();                                   // el cajero entra con el código
+      allow list: if logueado() && resource.data.uid == request.auth.uid;   // backup del dueño (where uid == suyo)
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) && request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    // ───────── Datos del negocio ─────────
+    match /negocios/{owner} {
+      allow read, write: if esDueno(owner);
+      allow read: if esAdmin();
+      allow get: if esCajero(owner);                              // cajero registrado lee features del negocio
+
+      // Alta del cajero: solo con un código de SU negocio
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() && request.auth.uid == cid
+          && exists(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo))
+          && get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.uid == owner
+          && get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.sucursalId == request.resource.data.sucursalId;
+        allow read: if esDueno(owner) || esAdmin() || (esAnonimo() && request.auth.uid == cid);
+        allow delete: if esDueno(owner);
+      }
+
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        // Cajero (acceso por link): opera catálogo, stock, ventas y gastos
+        allow read, write: if esCajero(owner)
+          && col in ['productos','insumos','proveedores','ventas','gastos'];
+        allow read: if esCajero(owner) && col == 'sucursales';
+      }
+
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if cajeroDeSuc(owner, sid) && col in ['ventas','gastos'];
+      }
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() && resource.data.uid == request.auth.uid;
+    }
+
+    // ───────── Registro de errores: cualquiera escribe, solo el admin lee ─────────
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
