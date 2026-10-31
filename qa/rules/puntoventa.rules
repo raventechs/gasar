@@ -1,0 +1,127 @@
+rules_version = '2';
+// PuntoVenta — Reglas Firestore endurecidas (dueño + empleados con invitación).
+// Publicar en Firebase Console → proyecto de PuntoVenta → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con el registro de empleados reordenado (ya publicada en main).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+    function yoRef() { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function yo() { return get(yoRef()).data; }
+    // Empleado aprobado de un negocio / dueño
+    function empleadoAprobado(neg, owner) {
+      return logueado() && !esAnonimo() && exists(yoRef())
+        && yo().get('rol', '') == 'employee'
+        && yo().get('estado', '') == 'aprobado'
+        && yo().get('banned', false) == false
+        && yo().get('negocioId', '') == neg
+        && yo().get('ownerUid', '') == owner;
+    }
+
+    // ── Usuarios ──
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin()
+        || (logueado() && resource.data.get('ownerUid', '') == request.auth.uid);   // el dueño ve a sus empleados
+      allow list: if esAdmin();
+      allow create: if esAdmin()
+        || (esDueno(uid) && (
+              // Dueño nuevo
+              (request.resource.data.rol == 'owner'
+                && request.resource.data.get('banned', false) == false
+                && request.resource.data.get('status', 'demo') == 'demo'
+                && !('features' in request.resource.data) && !('isAdmin' in request.resource.data))
+              // Empleado que se registra por invitación (queda pendiente hasta que el dueño lo apruebe)
+              || (request.resource.data.rol == 'employee'
+                && request.resource.data.estado == 'pendiente'
+                && request.resource.data.get('banned', false) == false
+                && request.resource.data.get('status', 'demo') == 'demo'
+                && !('features' in request.resource.data) && !('isAdmin' in request.resource.data)
+                && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.resource.data.ownerUid)
+           ));
+      allow update: if esAdmin()
+        || (esDueno(uid) && !toca(['status','banned','demoExpiry','isAdmin','features','rol','estado','ownerUid','negocioId']))
+        // El dueño aprueba / rechaza a sus empleados (solo el campo estado)
+        || (logueado() && resource.data.get('ownerUid', '') == request.auth.uid && uid != request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
+            && request.resource.data.estado in ['aprobado', 'rechazado']);
+      allow delete: if esAdmin();
+    }
+
+    // ── Negocios ──
+    match /negocios/{nid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin()
+        || (logueado() && exists(yoRef()) && yo().get('negocioId', '') == nid);
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid) || esAdmin();
+    }
+
+    // ── Invitaciones: se leen por id desde el link; no se listan ──
+    match /invitaciones/{code} {
+      allow get: if true;
+      allow create: if esDueno(request.resource.data.ownerUid)
+        && request.resource.data.usado == false
+        && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.auth.uid;
+      allow update: if logueado()
+        && resource.data.usado == false
+        && request.resource.data.usado == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usado','usadoPor','usadoAt']);
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // ── Empleados (solicitudes y altas) ──
+    match /empleados/{eid} {
+      allow read: if esDueno(resource.data.ownerUid) || (logueado() && resource.data.uid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid)
+        || (logueado() && request.resource.data.uid == request.auth.uid
+            && request.resource.data.estado == 'pendiente'
+            && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // ── Ventas: dueño y empleado aprobado ──
+    match /ventas/{vid} {
+      allow read: if esDueno(resource.data.ownerUid) || (logueado() && resource.data.empleadoUid == request.auth.uid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid)
+        || (request.resource.data.empleadoUid == request.auth.uid
+            && empleadoAprobado(request.resource.data.negocioId, request.resource.data.ownerUid));
+      allow update: if (esDueno(resource.data.ownerUid) || (logueado() && resource.data.empleadoUid == request.auth.uid))
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.empleadoUid == resource.data.empleadoUid;
+      allow delete: if esDueno(resource.data.ownerUid) || (logueado() && resource.data.empleadoUid == request.auth.uid);
+    }
+
+    // ── Gastos y clientes: solo el dueño ──
+    match /gastos/{gid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+    match /clientes/{cid} {
+      allow read: if esDueno(resource.data.ownerUid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid);
+      allow update: if esDueno(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}

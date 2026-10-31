@@ -1,0 +1,161 @@
+rules_version = '2';
+// SecurePro — Reglas Firestore endurecidas (multi-negocio con equipo: owner / editor / viewer).
+// Publicar en Firebase Console → proyecto pro-a247e → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Requiere la versión de la app con "invitación con nombre genérico" (ya publicada en main).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // ── Perfil del usuario actual (para saber a qué negocio y con qué rol pertenece) ──
+    function yoRef() { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function yo() { return get(yoRef()).data; }
+    function miembroAprobado(neg) {
+      return logueado() && !esAnonimo() && exists(yoRef())
+        && yo().get('negocioId', '') == neg
+        && yo().get('estado', 'aprobado') == 'aprobado'
+        && yo().get('banned', false) == false;
+    }
+    function puedeEscribir(neg) {
+      return miembroAprobado(neg) && yo().get('rol', 'owner') in ['owner', 'editor'];
+    }
+    function soyOwnerDe(neg) {
+      return miembroAprobado(neg) && yo().get('rol', 'owner') == 'owner';
+    }
+
+    // ── Datos del negocio: por negocioId (equipo) o, en documentos antiguos, por uid del autor ──
+    function datoPropio() { return logueado() && resource.data.uid == request.auth.uid; }
+    function datoDeMiNegocio() { return miembroAprobado(resource.data.negocioId); }
+    function creaPropio() { return esDueno(request.resource.data.uid) && !('negocioId' in request.resource.data); }
+    function creaEnMiNegocio() { return puedeEscribir(request.resource.data.negocioId); }
+    function actualizaPropio() { return datoPropio() && request.resource.data.uid == resource.data.uid
+                                      && (!('negocioId' in resource.data) || request.resource.data.negocioId == resource.data.negocioId); }
+    function actualizaEnMiNegocio() { return puedeEscribir(resource.data.negocioId)
+                                          && request.resource.data.negocioId == resource.data.negocioId; }
+    function borraPropio() { return datoPropio(); }
+    function borraEnMiNegocio() { return puedeEscribir(resource.data.negocioId); }
+
+    // Alta de cuenta propia
+    function altaOwner() {
+      let d = request.resource.data;
+      return d.rol == 'owner' && d.estado == 'aprobado'
+        && exists(/databases/$(database)/documents/negocios/$(d.negocioId))
+        && get(/databases/$(database)/documents/negocios/$(d.negocioId)).data.ownerUid == request.auth.uid
+        && d.get('banned', false) == false
+        && d.get('status', 'demo') == 'demo'
+        && (!('features' in d) || d.features == {'limiteEmpleados': 1})
+        && !('isAdmin' in d);
+    }
+    function altaEmpleado() {
+      let d = request.resource.data;
+      return d.rol in ['editor', 'viewer'] && d.estado == 'pendiente'
+        && exists(/databases/$(database)/documents/negocios/$(d.negocioId))
+        && d.get('banned', false) == false
+        && d.get('status', 'demo') == 'demo'
+        && !('features' in d) && !('isAdmin' in d);
+    }
+
+    match /usuarios/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      // El equipo de un negocio se ve entre sí (lista filtrada por negocioId)
+      allow read: if miembroAprobado(resource.data.negocioId);
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) && (altaOwner() || altaEmpleado())) || esAdmin();
+      allow update: if esAdmin()
+        || (esDueno(uid)
+            && !toca(['status','banned','demoExpiry','isAdmin','features','rol','estado','negocioId']))
+        // Reparación: cuenta sin negocio recibe su propio negocio como owner
+        || (esDueno(uid) && !('negocioId' in resource.data)
+            && request.resource.data.rol == 'owner' && request.resource.data.estado == 'aprobado'
+            && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.auth.uid
+            && !toca(['status','banned','demoExpiry','isAdmin','features']))
+        // El owner aprueba / quita / cambia el rol de su equipo
+        || (logueado() && uid != request.auth.uid
+            && soyOwnerDe(resource.data.negocioId)
+            && resource.data.get('rol', 'editor') != 'owner'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado','banned','rol'])
+            && request.resource.data.get('rol', 'editor') in ['editor', 'viewer']);
+      allow delete: if esAdmin()
+        || (logueado() && uid != request.auth.uid
+            && soyOwnerDe(resource.data.negocioId)
+            && resource.data.get('rol', 'editor') != 'owner');
+    }
+
+    // Invitaciones: se leen por id desde el link (sin cuenta); no se listan
+    match /invitaciones/{code} {
+      allow get: if true;
+      allow create: if soyOwnerDe(request.resource.data.negocioId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.usado == false
+        && request.resource.data.rol in ['editor', 'viewer'];
+      allow update: if logueado()
+        && resource.data.usado == false
+        && request.resource.data.usado == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usado','usadoPor','usadoAt']);
+      allow delete: if esDueno(resource.data.ownerUid);
+    }
+
+    // Negocios: owner escribe (sin tocar status ni ownerUid); el equipo lee; el admin activa el plan
+    match /negocios/{nid} {
+      allow read: if esDueno(resource.data.ownerUid) || miembroAprobado(nid) || esAdmin();
+      allow create: if esDueno(request.resource.data.ownerUid) && !('status' in request.resource.data);
+      allow update: if esAdmin()
+        || (esDueno(resource.data.ownerUid) && !toca(['status','ownerUid']));
+      allow delete: if esAdmin();
+    }
+
+    match /clientes/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /presupuestos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /productos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /eventos/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+    match /seguimiento/{id} {
+      allow read: if datoPropio() || datoDeMiNegocio();
+      allow create: if creaPropio() || creaEnMiNegocio();
+      allow update: if actualizaPropio() || actualizaEnMiNegocio();
+      allow delete: if borraPropio() || borraEnMiNegocio();
+      allow read: if esAdmin();
+    }
+
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read, delete: if esAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
