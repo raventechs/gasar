@@ -229,6 +229,9 @@ const sk=(u,p,m,t)=>[u,p,m,t].join('__');
 const soyRaven=u=>u&&u.email===RAVEN_EMAIL&&u.emailVerified;
 
 function cleanup(){S.unsub.forEach(f=>{try{f()}catch(e){}});S.unsub=[]}
+/* Seguro anti-cuelgue: si en 12 s la pantalla azul sigue, se muestra el login y el motivo */
+setTimeout(function(){var sp=document.getElementById('splash');if(sp&&!sp.classList.contains('off')){sp.classList.add('off');try{toast('La conexión tardó demasiado. Reintentá o abrí la app desde Chrome.',true)}catch(e){}try{render()}catch(e){}}},12000);
+auth.getRedirectResult().catch(function(e){hideSplash();toast('No se pudo ingresar con Google ('+(e.code||'error')+')',true)});
 auth.onAuthStateChanged(async u=>{
   cleanup();S.user=u;S.perfil=null;S.tid=null;S.raven=false;
   if(!u){hideSplash();return render()}
@@ -312,7 +315,7 @@ async function loginGoogle(){
   try{await auth.signInWithPopup(prov)}
   catch(e){
     console.error('google',e);
-    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){try{await auth.signInWithRedirect(prov);return}catch(x){e=x}}
+    if(e.code==='auth/popup-blocked'){hideSplash();toast('Tu navegador bloqueó la ventana de Google. Permití ventanas emergentes para este sitio o abrí GasAR desde Chrome.',true);return}
     const msg={'auth/unauthorized-domain':'Falta autorizar el dominio raventechs.github.io en Firebase (Authentication → Configuración → Dominios autorizados)','auth/operation-not-allowed':'Falta habilitar Google en Firebase (Authentication → Sign-in method)','auth/popup-closed-by-user':'Cerraste la ventana de Google antes de terminar','auth/cancelled-popup-request':'Se canceló la ventana de Google, probá de nuevo','auth/network-request-failed':'Sin conexión, probá de nuevo'}[e.code];
     toast(msg||('No se pudo ingresar con Google ('+(e.code||'error')+')'),true);
     const d=document.getElementById('gerr');if(d)d.textContent=(msg||'Error')+' · '+(e.code||'')
