@@ -23,7 +23,7 @@ Hay clientes activos con datos reales: ningún cambio de reglas, código o migra
 Juntar todos los cambios de reglas y pegarlas **una sola vez por app**. Siempre entregar archivos o reglas COMPLETOS, listos para copiar y pegar, con pasos.
 
 ## Brechas conocidas (31/10/2026)
-- Demo de 14 días con bloqueo: solo CarneAR, BarbeAR, LavAR, PanAR, PizzAR. Las demás usan el modelo viejo (`status` + `demoExpiry`, con botones +7/+30/Activar) y MDTC no tiene plan.
+- Demo de 14 días con bloqueo: solo CarneAR, BarbeAR, LavAR, PanAR, PizzAR y PeloteAR. Las demás usan el modelo viejo (`status` + `demoExpiry`, con botones +7/+30/Activar) y MDTC no tiene plan.
 - Modo Práctica: faltan AhorrAR, CharlAR, LegalAR, CentralBot, MTC (datos compartidos o personales → recorrido guiado).
 - Instructivo con PDF: faltan las demás apps (hecho en Rodix, CarneAR, BarbeAR, LavAR, PuntoVenta, SecurePro).
 - Claves expuestas: MTC (Anthropic) y CharlAR (Groq).
