@@ -1,0 +1,64 @@
+rules_version = '2';
+// Traductor de Hábitos — Reglas Firestore endurecidas (datos personales de salud y hábitos).
+// Publicar en Firebase Console → proyecto traductor-habitos → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Estructura que protegen (la misma que ya usa la app): users/{uid}, users/{uid}/records, users/{uid}/discoveries, errores.
+// Privacidad: el administrador ve la lista de usuarios (correo y estado de la prueba), pero NO puede leer los registros ni los descubrimientos de nadie.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function esDueno(uid) { return logueado() && !esAnonimo() && request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        && request.auth.token.email == 'rgaraventa@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // Alta de cuenta: siempre en prueba, sin baneo ni permisos especiales y con fin de prueba de hasta 15 días.
+    function altaValida() {
+      let d = request.resource.data;
+      return (!('status' in d) || d.status == 'demo')
+        && (!('banned' in d) || d.banned == false)
+        && (!('isAdmin' in d) || d.isAdmin == false)
+        && (!('features' in d))
+        && (!('demoHasta' in d) || d.demoHasta == null || d.demoHasta <= request.time + duration.value(15, 'd'));
+    }
+
+    // Usuarios (estado de la cuenta y de la prueba)
+    match /users/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) && altaValida()) || esAdmin();
+      // El cliente nunca cambia su propio estado, prueba o permisos: eso solo lo hace el administrador.
+      allow update: if esAdmin()
+        || (esDueno(uid) && !toca(['status','banned','demoStart','demoHasta','isAdmin','features']));
+      allow delete: if esAdmin();
+
+      // Registros y descubrimientos: solo su dueño (el administrador no los lee).
+      match /records/{rid} {
+        allow read, write: if esDueno(uid);
+      }
+      match /discoveries/{did} {
+        allow read, write: if esDueno(uid);
+      }
+    }
+
+    // Registro de errores de la app: cualquiera con sesión puede crear uno, solo lee el administrador.
+    match /errores/{eid} {
+      allow create: if logueado()
+        && request.resource.data.keys().hasOnly(['uid','app','version','msg','url','ua','createdAt']);
+      allow read, delete: if esAdmin();
+      allow update: if false;
+    }
+
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
