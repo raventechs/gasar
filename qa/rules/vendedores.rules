@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function mail() { return request.auth.token.email != null ? request.auth.token.email.lower() : ''; }
+    function esAdmin() { return request.auth != null && mail() == 'rgaraventa@gmail.com'; }
+    function esVendedor() { return request.auth != null && mail() != '' && exists(/databases/$(database)/documents/vendedores/$(mail())) && get(/databases/$(database)/documents/vendedores/$(mail())).data.activo == true; }
+
+    match /vendedores/{email} {
+      allow read: if esAdmin() || (request.auth != null && mail() == email);
+      allow write: if esAdmin();
+    }
+    match /envios/{id} {
+      allow create: if esVendedor() && request.resource.data.vendedorEmail == mail();
+      allow read: if esAdmin();
+      allow update, delete: if false;
+    }
+  }
+}
