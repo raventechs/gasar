@@ -75,14 +75,12 @@ footer{color:var(--mut);font-size:13px;margin:26px 0}
 • PuntoVenta: menú admin se abre con 5 toques al título en el celular; PanAR y PizzAR: arreglado el corte de pantalla.<br>
 • Antes (31/10): menú oculto sin PIN en 17 apps, reglas de Firestore endurecidas en 18, prueba de 14 días en 5, Modo Práctica en 12, PeloteAR migrada a Firestore.<br><br>
 <b>Pendientes, en orden recomendado</b><br>
-1. Firebase → Authentication → Authorized domains: agregar el dominio nuevo de cada app (si no, falla el ingreso con Google). LegalAR confirmado fallando.<br>
-2. Claves expuestas de MTC (Anthropic) y CharlAR (Groq): anular las viejas y crear el Worker de Cloudflare.<br>
-3. Pasar a cliente a los que ya pagan, antes de que se les termine la prueba de 14 días.<br>
-4. Confirmar en el celular: menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAR.<br>
-5. Rutas viejas en service workers: MTC, MiAgenda, PuntoVenta, SaludAR, SecuroPro (esperando OK).<br>
-6. PeloteAR: cargar una reserva real. Instructivos y prueba de 14 días que faltan en AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAR.<br>
-7. Más adelante: backup nocturno, rediseño de TimbreAR (expone teléfonos), Panel de actividades sin ícono.<br><br>
-<b>Para mañana</b>: 1) dominios en Firebase (10 min por app) · 2) probar y cerrar las apps que quedan una por una · 3) claves expuestas.
+1. Claves expuestas de MTC (Anthropic) y CharlAR (Groq): anular las viejas y crear el Worker de Cloudflare.<br>
+2. Confirmar en el celular: menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAR (y que el botón del folleto apunte a la demo).<br>
+3. Rutas viejas en service workers: MTC, MiAgenda, PuntoVenta, SaludAR, SecuroPro (esperando OK).<br>
+4. PeloteAR: cargar una reserva real. Instructivos y prueba de 14 días que faltan en AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAR.<br>
+5. Más adelante: backup nocturno, rediseño de TimbreAR (expone teléfonos), Panel de actividades sin ícono.<br><br>
+<b>Para mañana</b>: 1) seguir probando apps una por una y confirmar en el celular · 2) claves expuestas · 3) rutas viejas de los service workers.
 </div>
 <h2>✅ Para hacer ahora</h2><div class="hoy" id="hoy"></div>
 <div class="chips" id="fl"></div>
@@ -118,7 +116,7 @@ const APPS=[
 {id:'empresar',n:'EmpresAR',q:'Control de documentación con vencimientos: habilitaciones, seguros, VTV y personal',e:'amarillo',s:[T,T,F,F,F],p:'Probarla con la empresa de gas envasado cargando sus documentos reales; los módulos Plus (ventas, stock, flota) quedan para la próxima versión.',b:'automático diario + manual + restaurar · falta probarlo en tu celular',l:'https://garrafar.raventechsapp.com'},
 {id:'charlar',n:'CharlAR',q:'Compañía digital por voz para adultos mayores: la familia configura y el abuelo usa',e:'rojo',s:[T,T,F,F,F],p:'Pasar la key de GROQ a un Worker de Cloudflare (hoy está expuesta en el código); después el panel familiar con historial de conversaciones.',b:'automático diario + manual + restaurar · falta probarlo en tu celular',l:'https://charlar.raventechsapp.com'},
 {id:'ahorrar',n:'AhorrAR',q:'Descuentos y beneficios por zona, para consumidores, comercios y administración',e:'azul',s:[T,T,F,F,F],p:'Definir el modelo comercial para comercios; después el panel admin de promociones y la geolocalización por zona.',b:'automático + manual + restaurar, solo administrador · falta probarlo en tu celular',l:'https://ahorrar.raventechsapp.com'},
-{id:'legalar',n:'legalAR',q:'Consulta legal orientativa con IA, para abogados y para quien necesita orientación rápida',e:'azul',s:[T,T,F,F,F],p:'Agregar legalar.raventechsapp.com en Firebase Auth (proyecto legalar) para que ande Google; crear el Worker en Cloudflare (código listo).',b:'automático diario + manual + restaurar · falta probarlo en tu celular',l:'https://legalar.raventechsapp.com'}
+{id:'legalar',n:'legalAR',q:'Consulta legal orientativa con IA, para abogados y para quien necesita orientación rápida',e:'azul',s:[T,T,F,F,F],p:'Crear el Worker en Cloudflare (código listo) y revisar el ingreso con Google en su dominio nuevo.',b:'automático diario + manual + restaurar · falta probarlo en tu celular',l:'https://legalar.raventechsapp.com'}
 ];
 let st={};try{st=JSON.parse(localStorage.getItem('rt_tablero')||'{}')}catch(e){}
 const save=()=>{try{localStorage.setItem('rt_tablero',JSON.stringify(st))}catch(e){}};

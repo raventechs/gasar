@@ -19,15 +19,13 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 - **Del 31/10:** menú oculto sin PIN en 17 apps, reglas de Firestore endurecidas publicadas en 18 apps (sin probar contra Firebase real), prueba de 14 días con bloqueo en CarneAR, BarbeAR, lavAR, PanAR y PizzAR, Modo Práctica en 12 apps, instructivo con PDF en varias, PeloteAR migrada a Firestore, claves expuestas sacadas del código de MTC y CharlAR.
 
 **Pendientes, en orden recomendado:**
-1. **Firebase Auth → Authorized domains:** agregar el dominio nuevo de cada app en su proyecto (si no, falla el ingreso con Google). Proyecto → dominio: ahorrar-rt → ahorrar · barbear-c482c → barbear · carnear-1d2c4 → carnear · charlar-e5408 → charlar · empresar-ec7b7 → garrafar · lavar-b8b84 → lavar · legalar → legalar (confirmado fallando) · mdtc-487d4 → mdtc · miagenda-37996 → miagenda · panar-b08f1 → panar · pelotear-1f37e → pelotear · pizzar-b48af → pizzar · pro-a247e → securepro · timbrear-cdc41 → timbrear · vehigest-ar → rodix · ravenmarket-c2739 → comprazona (todos terminan en `.raventechsapp.com`).
-2. **Claves expuestas:** anular las claves viejas de Anthropic (MTC) y Groq (CharlAR), crear el Worker de Cloudflare (`worker.js` ya entregado) y pasar su dirección para cargarla en CharlAR (`IA_URL`).
-3. **Pasar a cliente** a los que ya pagan, antes de que termine la prueba de 14 días.
-4. **Confirmar en el celular:** menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAr y que el botón del folleto de TimbreAr (hoy apunta al timbre real) pase a la demo.
-5. **Service workers con rutas viejas** `/<app>/`: MTC, MiAgenda, PuntoVenta (registro), SaludAR (íconos de notificación) y SecuroPro; CentralbotAr no tiene `index.html`.
-6. **PeloteAR:** cargar una reserva real. **Instructivos y prueba de 14 días** que faltan: AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAr.
-7. **Más adelante:** backup nocturno desde servidor, probar el backup en el celular app por app, rediseño de TimbreAr (expone teléfonos de vecinos), ícono para el Panel de actividades, panel con el historial de apps probadas.
+1. **Claves expuestas:** anular las claves viejas de Anthropic (MTC) y Groq (CharlAR), crear el Worker de Cloudflare (`worker.js` ya entregado) y pasar su dirección para cargarla en CharlAR (`IA_URL`).
+2. **Confirmar en el celular:** menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAr y que el botón del folleto de TimbreAr (hoy apunta al timbre real) pase a la demo.
+3. **Service workers con rutas viejas** `/<app>/`: MTC, MiAgenda, PuntoVenta (registro), SaludAR (íconos de notificación) y SecuroPro; CentralbotAr no tiene `index.html`.
+4. **PeloteAR:** cargar una reserva real. **Instructivos y prueba de 14 días** que faltan: AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAr.
+5. **Más adelante:** backup nocturno desde servidor, probar el backup en el celular app por app, rediseño de TimbreAr (expone teléfonos de vecinos), ícono para el Panel de actividades, panel con el historial de apps probadas.
 
-**Plan para mañana:** 1) dominios en Firebase (lo más rápido y desbloquea el ingreso) · 2) seguir probando apps una por una y anotar las que quedan OK · 3) claves expuestas de MTC y CharlAR.
+**Plan para mañana:** 1) seguir probando apps una por una y anotar las que quedan OK · 2) claves expuestas de MTC y CharlAR · 3) rutas viejas de los service workers.
 
 **Historial de apps probadas y OK por Ruben:** CompraZona (1/11), SaludAR (1/11), TimbreAr portada/demo (1/11); PuntoVenta (ingreso OK, falta confirmar menú).
 
