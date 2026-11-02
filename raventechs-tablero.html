@@ -3,6 +3,7 @@
   Versión: 2.5.0
   Fecha: 2026-11-01
   Changelog:
+   - 2.6.0 (2/11/2026): se puede instalar como app en el celular (ícono propio, abre sin barra de direcciones).
    - 2.5.0 (1/11/2026): resumen del día con lo hecho, pendientes y plan para mañana; CompraZona y SaludAR probadas por Ruben; TimbreAR con demo completa; PuntoVenta, PanAR, PizzAR, LegalAR con su próximo paso actualizado; íconos nuevos en 21 apps y enlaces a los dominios *.raventechsapp.com.
    - 2.4.0: cada app muestra su estado de backup (💾); PanAR avisa que falta la vista Stock; manejAr: backup nocturno.
    - 2.3.0: se suman BarbeAR, PeloteAR, TimbreAr y LogisAR con su estado actual y próximo paso.
@@ -23,6 +24,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest-tablero.webmanifest">
+<link rel="icon" href="icon-tablero-192.png">
+<link rel="apple-touch-icon" href="icon-tablero-apple-180.png">
 <title>RavenTechs · Tablero</title>
 <style>
 :root{--bg:#0b1220;--card:#131c2e;--ln:#24324d;--tx:#eaf0fb;--mut:#93a3c0;--ac:#4da3ff;--v:#37c47a;--a:#f2b84b;--az:#4da3ff;--r:#ff6b6b}
@@ -150,5 +154,6 @@ function draw(){
 }
 draw();
 </script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw-tablero.js',{scope:'/gasar/raventechs-tablero.html'}).catch(function(){})})}</script>
 </body>
 </html>

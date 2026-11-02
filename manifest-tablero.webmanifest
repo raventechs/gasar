@@ -1,0 +1,16 @@
+{
+  "name": "RavenTechs · Tablero",
+  "short_name": "Tablero",
+  "description": "Estado de todas las apps de RavenTechs: etapas, pendientes y plan.",
+  "start_url": "/gasar/raventechs-tablero.html",
+  "scope": "/gasar/raventechs-tablero.html",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "es",
+  "icons": [
+    { "src": "/gasar/icon-tablero-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/gasar/icon-tablero-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/gasar/icon-tablero-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
