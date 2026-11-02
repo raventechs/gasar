@@ -1,0 +1,236 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Traductor de Hábitos — pasos para dejarla lista</title>
+<style>body{font:17px/1.5 Arial,sans-serif;background:#f4f6fb;color:#10213f;margin:0}.w{max-width:760px;margin:auto;padding:14px}h1{font-size:26px}.c{background:#fff;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #0001}h2{margin:0 0 6px}.b{display:block;text-align:center;background:#1d4ed8;color:#fff;text-decoration:none;border:0;border-radius:12px;padding:14px;margin:8px 0;font-size:17px;font-weight:700;width:100%;box-sizing:border-box}.g{background:#16a34a;cursor:pointer}.r{background:#b91c1c}.s{font-size:15px;color:#334}textarea{width:100%;height:120px;font:12px monospace;box-sizing:border-box}code{background:#eef;padding:1px 5px;border-radius:5px}</style></head><body><div class="w">
+<h1>Traductor de Hábitos — pasos para dejarla lista</h1>
+<p class="s">Hacelos en este orden. El paso 1 es el más urgente: la clave de Groq estuvo escrita en el código, que es público.</p>
+
+<section class="c"><h2>1) Clave de Groq: crear una nueva y borrar la vieja</h2>
+<a class="b r" href="https://console.groq.com/keys" target="_blank" rel="noopener">Abrir las claves de Groq</a>
+<p class="s">a) Tocá <b>Create API Key</b>, ponele de nombre <code>RavenTechs-IA</code> y <b>copiá la clave</b> (empieza con <code>gsk_</code>). Guardala en un lugar seguro: solo se ve una vez.<br>b) En la lista, <b>borrá (Delete) las claves viejas</b>. La de Traductor de Hábitos empezaba con <code>gsk_xF7l</code>. Si CharlAR usaba otra, borrala también.</p></section>
+
+<section class="c"><h2>2) Crear el Worker de IA en Cloudflare</h2>
+<a class="b" href="https://dash.cloudflare.com/?to=/:account/workers-and-pages" target="_blank" rel="noopener">Abrir Cloudflare Workers</a>
+<button class="b g" onclick="cp('w',this)">Copiar el código del Worker (completo)</button>
+<p class="s">a) <b>Create</b> → <b>Create Worker</b> → nombre <code>raventechs-ia</code> → <b>Deploy</b>.<br>b) Tocá <b>Edit code</b>, <b>borrá todo lo que hay</b>, pegá el código copiado y tocá <b>Deploy</b>.<br>c) Volvé al Worker → <b>Settings</b> → <b>Variables and Secrets</b> → <b>Add</b>: tipo <b>Secret</b>, nombre <code>GROQ_KEY</code> (en mayúsculas), valor: la clave NUEVA del paso 1 → <b>Deploy</b>.<br>d) Copiá la dirección del Worker (algo como <code>https://raventechs-ia.TUNOMBRE.workers.dev</code>) y <b>mandámela por el chat</b>: yo la cargo en Traductor de Hábitos y en CharlAR.</p>
+<textarea id="w" readonly>/**
+ * RavenTechs — Servidor intermedio de IA (Cloudflare Worker)
+ * Versión: 1.0 · 02/11/2026
+ *
+ * Para qué sirve: las apps con IA (CharlAR y Traductor de Hábitos) ya NO llevan la clave de Groq en el código.
+ * La app le manda sus mensajes a este Worker junto con el token de sesión de Firebase del usuario; el Worker
+ * comprueba que el usuario esté logueado en una de las apps autorizadas, le agrega la clave y consulta a Groq.
+ *
+ * Variable secreta que hay que cargar en Cloudflare (Settings → Variables and Secrets → tipo &quot;Secret&quot;):
+ *   GROQ_KEY   = la clave NUEVA de Groq (la vieja hay que anularla en Groq)
+ *
+ * Qué NO hace: no guarda mensajes, no registra textos, no conoce el nombre ni el correo del usuario.
+ */
+
+// Apps autorizadas: projectId de Firebase → dominios desde los que se aceptan pedidos
+const APPS = {
+  &#x27;charlar-e5408&#x27;:    [&#x27;https://charlar.raventechsapp.com&#x27;],
+  &#x27;traductor-habitos&#x27;: [&#x27;https://habitos.raventechsapp.com&#x27;],
+};
+const MODELOS = [&#x27;llama-3.1-8b-instant&#x27;, &#x27;llama-3.3-70b-versatile&#x27;];
+const MODELO_POR_DEFECTO = &#x27;llama-3.1-8b-instant&#x27;;
+const MAX_TOKENS = 1000;       // tope por respuesta
+const MAX_MENSAJES = 24;       // mensajes por pedido
+const MAX_CARACTERES = 16000;  // texto total por pedido
+const LIMITE_POR_MINUTO = 20;  // pedidos por usuario y minuto (por servidor, aproximado)
+
+const JWK_URL = &#x27;https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com&#x27;;
+let jwkCache = { keys: null, hasta: 0 };
+const usos = new Map();
+
+function cors(origin) {
+  return {
+    &#x27;Access-Control-Allow-Origin&#x27;: origin,
+    &#x27;Access-Control-Allow-Methods&#x27;: &#x27;POST, OPTIONS&#x27;,
+    &#x27;Access-Control-Allow-Headers&#x27;: &#x27;Content-Type, Authorization&#x27;,
+    &#x27;Access-Control-Max-Age&#x27;: &#x27;86400&#x27;,
+    &#x27;Vary&#x27;: &#x27;Origin&#x27;,
+  };
+}
+function json(obj, status, origin) {
+  return new Response(JSON.stringify(obj), {
+    status, headers: Object.assign({ &#x27;Content-Type&#x27;: &#x27;application/json&#x27; }, origin ? cors(origin) : {}),
+  });
+}
+function b64uBytes(s) {
+  s = s.replace(/-/g, &#x27;+&#x27;).replace(/_/g, &#x27;/&#x27;); while (s.length % 4) s += &#x27;=&#x27;;
+  const bin = atob(s); const out = new Uint8Array(bin.length);
+  for (let i = 0; i &lt; bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function b64uJson(s) { return JSON.parse(new TextDecoder().decode(b64uBytes(s))); }
+
+async function claves() {
+  if (jwkCache.keys &amp;&amp; Date.now() &lt; jwkCache.hasta) return jwkCache.keys;
+  const r = await fetch(JWK_URL);
+  if (!r.ok) throw new Error(&#x27;No se pudieron leer las claves públicas de Google&#x27;);
+  const data = await r.json();
+  const cc = r.headers.get(&#x27;cache-control&#x27;) || &#x27;&#x27;;
+  const m = cc.match(/max-age=(\d+)/);
+  jwkCache = { keys: data.keys, hasta: Date.now() + (m ? Number(m[1]) : 3600) * 1000 };
+  return jwkCache.keys;
+}
+
+// Comprueba la firma y los datos del token de sesión de Firebase. Devuelve { uid, projectId } o lanza error.
+async function verificarToken(token) {
+  const partes = (token || &#x27;&#x27;).split(&#x27;.&#x27;);
+  if (partes.length !== 3) throw new Error(&#x27;token&#x27;);
+  const cab = b64uJson(partes[0]);
+  const carga = b64uJson(partes[1]);
+  if (cab.alg !== &#x27;RS256&#x27; || !cab.kid) throw new Error(&#x27;token&#x27;);
+  const proyecto = carga.aud;
+  if (!APPS[proyecto]) throw new Error(&#x27;app no autorizada&#x27;);
+  if (carga.iss !== &#x27;https://securetoken.google.com/&#x27; + proyecto) throw new Error(&#x27;emisor&#x27;);
+  const ahora = Math.floor(Date.now() / 1000);
+  if (!carga.exp || carga.exp &lt; ahora) throw new Error(&#x27;vencido&#x27;);
+  if (carga.iat &amp;&amp; carga.iat &gt; ahora + 300) throw new Error(&#x27;fecha&#x27;);
+  if (!carga.sub) throw new Error(&#x27;sin usuario&#x27;);
+  const jwk = (await claves()).find(k =&gt; k.kid === cab.kid);
+  if (!jwk) throw new Error(&#x27;clave desconocida&#x27;);
+  const key = await crypto.subtle.importKey(&#x27;jwk&#x27;, jwk, { name: &#x27;RSASSA-PKCS1-v1_5&#x27;, hash: &#x27;SHA-256&#x27; }, false, [&#x27;verify&#x27;]);
+  const ok = await crypto.subtle.verify(&#x27;RSASSA-PKCS1-v1_5&#x27;, key, b64uBytes(partes[2]),
+    new TextEncoder().encode(partes[0] + &#x27;.&#x27; + partes[1]));
+  if (!ok) throw new Error(&#x27;firma&#x27;);
+  return { uid: carga.sub, projectId: proyecto };
+}
+
+function demasiado(uid) {
+  const ahora = Date.now();
+  const lista = (usos.get(uid) || []).filter(t =&gt; ahora - t &lt; 60000);
+  if (lista.length &gt;= LIMITE_POR_MINUTO) { usos.set(uid, lista); return true; }
+  lista.push(ahora); usos.set(uid, lista);
+  if (usos.size &gt; 5000) usos.clear();
+  return false;
+}
+
+export default {
+  async fetch(request, env) {
+    const origen = request.headers.get(&#x27;Origin&#x27;) || &#x27;&#x27;;
+    const permitidos = [].concat(...Object.values(APPS));
+
+    if (request.method === &#x27;OPTIONS&#x27;) {
+      return permitidos.includes(origen) ? new Response(null, { status: 204, headers: cors(origen) }) : new Response(null, { status: 403 });
+    }
+    if (request.method !== &#x27;POST&#x27;) return json({ error: &#x27;Método no permitido&#x27; }, 405, permitidos.includes(origen) ? origen : null);
+    if (!permitidos.includes(origen)) return json({ error: &#x27;Origen no autorizado&#x27; }, 403, null);
+    if (!env.GROQ_KEY) return json({ error: &#x27;Servidor sin configurar&#x27; }, 500, origen);
+
+    let sesion;
+    try {
+      const auth = request.headers.get(&#x27;Authorization&#x27;) || &#x27;&#x27;;
+      sesion = await verificarToken(auth.replace(/^Bearer\s+/i, &#x27;&#x27;));
+      if (!APPS[sesion.projectId].includes(origen)) throw new Error(&#x27;origen distinto de la app&#x27;);
+    } catch (e) {
+      return json({ error: &#x27;Sesión no válida. Volvé a iniciar sesión.&#x27; }, 401, origen);
+    }
+    if (demasiado(sesion.uid)) return json({ error: &#x27;Demasiados pedidos seguidos. Esperá un minuto.&#x27; }, 429, origen);
+
+    let cuerpo;
+    try { cuerpo = await request.json(); } catch (e) { return json({ error: &#x27;Pedido inválido&#x27; }, 400, origen); }
+    const mensajes = Array.isArray(cuerpo.messages) ? cuerpo.messages : null;
+    if (!mensajes || !mensajes.length || mensajes.length &gt; MAX_MENSAJES) return json({ error: &#x27;Mensajes inválidos&#x27; }, 400, origen);
+    let total = 0;
+    for (const m of mensajes) {
+      if (!m || ![&#x27;system&#x27;, &#x27;user&#x27;, &#x27;assistant&#x27;].includes(m.role) || typeof m.content !== &#x27;string&#x27;) return json({ error: &#x27;Mensajes inválidos&#x27; }, 400, origen);
+      total += m.content.length;
+    }
+    if (total &gt; MAX_CARACTERES) return json({ error: &#x27;Texto demasiado largo&#x27; }, 413, origen);
+
+    const modelo = MODELOS.includes(cuerpo.model) ? cuerpo.model : MODELO_POR_DEFECTO;
+    const maxTokens = Math.min(Math.max(parseInt(cuerpo.max_tokens, 10) || 400, 1), MAX_TOKENS);
+    const temperatura = typeof cuerpo.temperature === &#x27;number&#x27; ? Math.min(Math.max(cuerpo.temperature, 0), 1.2) : 0.6;
+
+    const r = await fetch(&#x27;https://api.groq.com/openai/v1/chat/completions&#x27;, {
+      method: &#x27;POST&#x27;,
+      headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27;, &#x27;Authorization&#x27;: &#x27;Bearer &#x27; + env.GROQ_KEY },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens, temperature: temperatura, messages: mensajes }),
+    });
+    const texto = await r.text();
+    return new Response(texto, { status: r.status, headers: Object.assign({ &#x27;Content-Type&#x27;: &#x27;application/json&#x27; }, cors(origen)) });
+  },
+};
+</textarea></section>
+
+<section class="c"><h2>3) Dominio habitos.raventechsapp.com</h2>
+<p class="s">a) Donde administrás <b>raventechsapp.com</b> (el mismo lugar donde cargaste los demás), creá un registro <b>CNAME</b>: nombre <code>habitos</code>, destino <code>raventechs.github.io</code>.<br>b) En GitHub abrí el repo <code>raventechs-traductor-habitos</code> → <b>Settings</b> → <b>Pages</b>: Source <b>Deploy from a branch</b>, rama <code>main</code>, carpeta <code>/ (root)</code>. El dominio <code>habitos.raventechsapp.com</code> ya aparece por el archivo CNAME. Cuando termine de verificar, marcá <b>Enforce HTTPS</b>.</p>
+<a class="b" href="https://github.com/raventechs/raventechs-traductor-habitos/settings/pages" target="_blank" rel="noopener">Abrir Pages del repo</a></section>
+
+<section class="c"><h2>4) Firebase (proyecto traductor-habitos)</h2>
+<a class="b" href="https://console.firebase.google.com/project/traductor-habitos/authentication/settings" target="_blank" rel="noopener">a) Abrir Authentication → Settings</a>
+<p class="s">En <b>Authorized domains</b> tocá <b>Add domain</b> y agregá <code>habitos.raventechsapp.com</code>. Revisá en <b>Sign-in method</b> que <b>Google</b> esté activado.</p>
+<a class="b" href="https://console.firebase.google.com/project/traductor-habitos/firestore/databases/-default-/rules" target="_blank" rel="noopener">b) Abrir las reglas de Firestore</a>
+<button class="b g" onclick="cp('r',this)">c) Copiar las reglas (completas)</button>
+<p class="s">d) En Firebase tocá dentro del cuadro de reglas, <b>Ctrl+A</b> (seleccionar todo), <b>pegar</b> y botón azul <b>Publicar</b>. Estas reglas no borran ni modifican datos: solo controlan quién puede leer y escribir.</p>
+<textarea id="r" readonly>rules_version = &#x27;2&#x27;;
+// Traductor de Hábitos — Reglas Firestore endurecidas (datos personales de salud y hábitos).
+// Publicar en Firebase Console → proyecto traductor-habitos → Firestore Database → Reglas → pegar TODO → Publicar.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// Estructura que protegen (la misma que ya usa la app): users/{uid}, users/{uid}/records, users/{uid}/discoveries, errores.
+// Privacidad: el administrador ve la lista de usuarios (correo y estado de la prueba), pero NO puede leer los registros ni los descubrimientos de nadie.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(uid) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == uid; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function toca(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // Alta de cuenta: siempre en prueba, sin baneo ni permisos especiales y con fin de prueba de hasta 15 días.
+    function altaValida() {
+      let d = request.resource.data;
+      return (!(&#x27;status&#x27; in d) || d.status == &#x27;demo&#x27;)
+        &amp;&amp; (!(&#x27;banned&#x27; in d) || d.banned == false)
+        &amp;&amp; (!(&#x27;isAdmin&#x27; in d) || d.isAdmin == false)
+        &amp;&amp; (!(&#x27;features&#x27; in d))
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in d) || d.demoHasta == null || d.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+    }
+
+    // Usuarios (estado de la cuenta y de la prueba)
+    match /users/{uid} {
+      allow get: if esDueno(uid) || esAdmin();
+      allow list: if esAdmin();
+      allow create: if (esDueno(uid) &amp;&amp; altaValida()) || esAdmin();
+      // El cliente nunca cambia su propio estado, prueba o permisos: eso solo lo hace el administrador.
+      allow update: if esAdmin()
+        || (esDueno(uid) &amp;&amp; !toca([&#x27;status&#x27;,&#x27;banned&#x27;,&#x27;demoStart&#x27;,&#x27;demoHasta&#x27;,&#x27;isAdmin&#x27;,&#x27;features&#x27;]));
+      allow delete: if esAdmin();
+
+      // Registros y descubrimientos: solo su dueño (el administrador no los lee).
+      match /records/{rid} {
+        allow read, write: if esDueno(uid);
+      }
+      match /discoveries/{did} {
+        allow read, write: if esDueno(uid);
+      }
+    }
+
+    // Registro de errores de la app: cualquiera con sesión puede crear uno, solo lee el administrador.
+    match /errores/{eid} {
+      allow create: if logueado()
+        &amp;&amp; request.resource.data.keys().hasOnly([&#x27;uid&#x27;,&#x27;app&#x27;,&#x27;version&#x27;,&#x27;msg&#x27;,&#x27;url&#x27;,&#x27;ua&#x27;,&#x27;createdAt&#x27;]);
+      allow read, delete: if esAdmin();
+      allow update: if false;
+    }
+
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+</textarea></section>
+
+<section class="c"><h2>5) Probarla en tu celular</h2>
+<p class="s">Abrí <code>https://habitos.raventechsapp.com</code> en Chrome → <b>Continuar con Google</b> → Perfil → <b>Cargar datos de práctica</b> → Descubrir → <b>Analizar ahora</b>. Avisame qué ves y la marco como probada.</p></section>
+<script>function cp(id,b){var t=document.getElementById(id);t.select();t.setSelectionRange(0,999999);try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}var o=b.textContent;b.textContent='✔ Copiado';setTimeout(function(){b.textContent=o},1800)}</script>
+</div></body></html>
