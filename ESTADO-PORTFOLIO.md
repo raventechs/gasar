@@ -12,7 +12,7 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 - Las apps viven en dominios propios `*.raventechsapp.com` (ej. `saludar.raventechsapp.com`); las direcciones viejas `raventechs.github.io/<app>/` y `raventechs.lat/<app>/` ya no sirven. Los folletos, `protocolo.html`, `pruebas.html` y las notificaciones del sitio ya apuntan a los dominios nuevos.
 - **CompraZona** (app cliente v1.2): probada por Ruben, etapa 4 ✓. Permisos de ubicación y notificaciones, botón "Ubicación activa", "Cerca de vos", "Tu último pedido", instalación como app, bloqueo y menú oculto OK.
 - **SaludAR:** probada OK en `saludar.raventechsapp.com` (instala, queda logueada, ícono nuevo).
-- **TimbreAr:** portada en la raíz del dominio (daba 404) y demo completa simulada en `/demo.html` (visita toca un depto → al residente le llega el aviso → atender → chat → abrir puerta); rutas `/timbrear/` viejas corregidas.
+- **TimbreAr:** portada en la raíz del dominio (daba 404) y demo completa simulada en `/demo.html` (visita toca un depto → al residente le llega el aviso → atender → chat → abrir puerta); rutas `/timbrear/` viejas corregidas. **Privacidad (parte 1) cerrada y probada:** la visita lee un directorio público (solo depto y piso); herramienta `timbrear-directorio.html`; reglas v2 publicadas.
 - **PuntoVenta:** ingreso con Google OK tras autorizar el dominio en Firebase; menú admin se abre con 5 toques al título "Dashboard" en el celular (confirmar).
 - **PanAR y PizzAR:** corregido el corte de pantalla en el celular (grilla de la caja).
 - **Íconos nuevos** (dibujo + 3-4 colores) en 21 apps; Rodix con ambulancia + auto. Panel de actividades no tiene ícono ni manifest.
@@ -20,12 +20,15 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Pendientes, en orden recomendado:**
 1. **Claves expuestas:** anular las claves viejas de Anthropic (MTC) y Groq (CharlAR), crear el Worker de Cloudflare (`worker.js` ya entregado) y pasar su dirección para cargarla en CharlAR (`IA_URL`).
-2. **Confirmar en el celular:** menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAr y que el botón del folleto de TimbreAr (hoy apunta al timbre real) pase a la demo.
-3. **Service workers con rutas viejas** `/<app>/`: MTC, MiAgenda, PuntoVenta (registro), SaludAR (íconos de notificación) y SecuroPro; CentralbotAr no tiene `index.html`.
-4. **PeloteAR:** cargar una reserva real. **Instructivos y prueba de 14 días** que faltan: AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAr.
-5. **Más adelante:** backup nocturno desde servidor, probar el backup en el celular app por app, rediseño de TimbreAr (expone teléfonos de vecinos), ícono para el Panel de actividades, panel con el historial de apps probadas.
+2. **TimbreAr parte 2:** pasar los edificios de la consola de administración (hoy solo en el navegador) a la base.
+3. **TimbreAr parte 3:** aviso al residente con la app cerrada (probar en Xiaomi con dos celulares).
+4. **Confirmar en el celular:** CompraZona v1.2 ("Cerca de vos", "Tu último pedido"), los service workers de PuntoVenta, MTC y SaludAR, y decidir si el botón del folleto de TimbreAr apunta a la demo (`/demo.html`).
+5. **PeloteAR:** cargar una reserva real. **Instructivos y prueba de 14 días** que faltan: AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAr.
+6. **Más adelante:** backup nocturno desde servidor, probar el backup en el celular app por app, ícono para el Panel de actividades, panel con el historial de apps probadas, botones de Rodix a 390 px, error de importación en AhorrAR.
 
-**Plan para mañana:** 1) seguir probando apps una por una y anotar las que quedan OK · 2) claves expuestas de MTC y CharlAR · 3) rutas viejas de los service workers.
+**Plan para mañana (2/11):** 1) claves expuestas de MTC y CharlAR · 2) TimbreAr parte 2 · 3) TimbreAr parte 3 · mientras tanto, seguir probando apps una por una y anotar las que quedan OK.
+
+**TimbreAr, limitaciones conocidas:** la cuenta de Google del administrador llega a ese proyecto de Firebase sin correo en el token (las reglas por correo no la reconocen); cualquier visita anónima podría escribir el token de aviso de un departamento.
 
 **Historial de apps probadas y OK por Ruben:** CompraZona (1/11), SaludAR (1/11), TimbreAr portada/demo (1/11); PuntoVenta (ingreso OK, falta confirmar menú).
 
