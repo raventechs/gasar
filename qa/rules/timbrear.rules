@@ -2,8 +2,9 @@ rules_version = '2';
 // TimbrAR — Reglas Firestore (conservadoras). Visitantes y residentes entran con sesión anónima y un link; el servidor de push usa Admin SDK.
 // Publicar en Firebase Console → proyecto timbrear-cdc41 → Firestore Database → Reglas → pegar TODO → Publicar.
 // Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
-// LIMITACIÓN CONOCIDA: el directorio de departamentos incluye teléfono y token de aviso y lo lee cualquier visitante del edificio;
-// resolverlo requiere mover esos datos a un documento privado (cambio de la app, pendiente).
+// v2 (1/11/2026): los datos privados del departamento (nombre, teléfono y token de aviso) ya NO los puede leer ningún visitante.
+// La visita lee un directorio público (edificios/{id}/directorio) que solo tiene número de depto y piso.
+// ORDEN PARA PUBLICAR: 1) esperar a que se publique la app nueva; 2) abrir UNA vez el link del timbre del edificio (arma el directorio); 3) pegar estas reglas.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -24,8 +25,17 @@ service cloud.firestore {
       allow create: if logueado();
       allow update, delete: if esAdmin();
 
-      match /departamentos/{did} {
+      // Directorio público: solo etiqueta y piso (lo que ve la visita). No lleva nombre, teléfono ni token.
+      match /directorio/{did} {
         allow read: if logueado();
+        allow create: if logueado() && request.resource.data.keys().hasOnly(['etiqueta','piso']);
+        allow update: if esAdmin();
+        allow delete: if esAdmin();
+      }
+
+      // Datos privados del departamento: solo los lee el administrador (el servidor de push usa Admin SDK y no pasa por acá)
+      match /departamentos/{did} {
+        allow read: if esAdmin();
         allow create: if logueado();
         allow update: if esAdmin()
           || (logueado() && soloCambia(['fcmToken','tokenEn','activado','nombreReal','activadoEn']));
