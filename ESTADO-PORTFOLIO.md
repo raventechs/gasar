@@ -1,10 +1,35 @@
 # Estado del portfolio RavenTechs
 
-Base de trabajo, actualizada el 26/10/2026 a la noche (incluye manejAr, la auditoría de backup, los arreglos del 26/10 y su verificación independiente). Es la misma información del tablero maestro, en un formato que se lee desde cualquier chat.
+Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); la tabla es del 26/10/2026 a la noche (incluye manejAr, la auditoría de backup, los arreglos del 26/10 y su verificación independiente). Es la misma información del tablero maestro, en un formato que se lee desde cualquier chat.
 
 **Etapas:** 1 Construida · 2 Publicada · 3 Práctica/demo lista · 4 Probada por vos · 5 Con clientes. `✓` = hecha, `·` = falta.
 
 **Fuentes:** tablero maestro (`raventechs-tablero.html`, v2.4.0, ahora con una línea de backup por app), portal (`raventechs.github.io`), código de cada repo y lo que Ruben confirmó de palabra. Las tildes que se marcan tocando el tablero se guardan solo en el celular, así que este archivo es la referencia compartida.
+
+## Actualización del 1/11/2026 (leer primero)
+
+**Cambios desde el 26/10 (la tabla de abajo todavía muestra el estado del 26/10, salvo lo marcado acá):**
+- Las apps viven en dominios propios `*.raventechsapp.com` (ej. `saludar.raventechsapp.com`); las direcciones viejas `raventechs.github.io/<app>/` y `raventechs.lat/<app>/` ya no sirven. Los folletos, `protocolo.html`, `pruebas.html` y las notificaciones del sitio ya apuntan a los dominios nuevos.
+- **CompraZona** (app cliente v1.2): probada por Ruben, etapa 4 ✓. Permisos de ubicación y notificaciones, botón "Ubicación activa", "Cerca de vos", "Tu último pedido", instalación como app, bloqueo y menú oculto OK.
+- **SaludAR:** probada OK en `saludar.raventechsapp.com` (instala, queda logueada, ícono nuevo).
+- **TimbreAr:** portada en la raíz del dominio (daba 404) y demo completa simulada en `/demo.html` (visita toca un depto → al residente le llega el aviso → atender → chat → abrir puerta); rutas `/timbrear/` viejas corregidas.
+- **PuntoVenta:** ingreso con Google OK tras autorizar el dominio en Firebase; menú admin se abre con 5 toques al título "Dashboard" en el celular (confirmar).
+- **PanAR y PizzAR:** corregido el corte de pantalla en el celular (grilla de la caja).
+- **Íconos nuevos** (dibujo + 3-4 colores) en 21 apps; Rodix con ambulancia + auto. Panel de actividades no tiene ícono ni manifest.
+- **Del 31/10:** menú oculto sin PIN en 17 apps, reglas de Firestore endurecidas publicadas en 18 apps (sin probar contra Firebase real), prueba de 14 días con bloqueo en CarneAR, BarbeAR, lavAR, PanAR y PizzAR, Modo Práctica en 12 apps, instructivo con PDF en varias, PeloteAR migrada a Firestore, claves expuestas sacadas del código de MTC y CharlAR.
+
+**Pendientes, en orden recomendado:**
+1. **Firebase Auth → Authorized domains:** agregar el dominio nuevo de cada app en su proyecto (si no, falla el ingreso con Google). Proyecto → dominio: ahorrar-rt → ahorrar · barbear-c482c → barbear · carnear-1d2c4 → carnear · charlar-e5408 → charlar · empresar-ec7b7 → garrafar · lavar-b8b84 → lavar · legalar → legalar (confirmado fallando) · mdtc-487d4 → mdtc · miagenda-37996 → miagenda · panar-b08f1 → panar · pelotear-1f37e → pelotear · pizzar-b48af → pizzar · pro-a247e → securepro · timbrear-cdc41 → timbrear · vehigest-ar → rodix · ravenmarket-c2739 → comprazona (todos terminan en `.raventechsapp.com`).
+2. **Claves expuestas:** anular las claves viejas de Anthropic (MTC) y Groq (CharlAR), crear el Worker de Cloudflare (`worker.js` ya entregado) y pasar su dirección para cargarla en CharlAR (`IA_URL`).
+3. **Pasar a cliente** a los que ya pagan, antes de que termine la prueba de 14 días.
+4. **Confirmar en el celular:** menú oculto de PuntoVenta, CompraZona v1.2, PanAR/PizzAR sin corte, demo de TimbreAr y que el botón del folleto de TimbreAr (hoy apunta al timbre real) pase a la demo.
+5. **Service workers con rutas viejas** `/<app>/`: MTC, MiAgenda, PuntoVenta (registro), SaludAR (íconos de notificación) y SecuroPro; CentralbotAr no tiene `index.html`.
+6. **PeloteAR:** cargar una reserva real. **Instructivos y prueba de 14 días** que faltan: AhorrAR, CharlAR, LegalAR, MTC, GasAR, manejAr, CompraZona y TimbreAr.
+7. **Más adelante:** backup nocturno desde servidor, probar el backup en el celular app por app, rediseño de TimbreAr (expone teléfonos de vecinos), ícono para el Panel de actividades, panel con el historial de apps probadas.
+
+**Plan para mañana:** 1) dominios en Firebase (lo más rápido y desbloquea el ingreso) · 2) seguir probando apps una por una y anotar las que quedan OK · 3) claves expuestas de MTC y CharlAR.
+
+**Historial de apps probadas y OK por Ruben:** CompraZona (1/11), SaludAR (1/11), TimbreAr portada/demo (1/11); PuntoVenta (ingreso OK, falta confirmar menú).
 
 ## Tabla de apps
 
