@@ -6,6 +6,23 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Fuentes:** tablero maestro (`raventechs-tablero.html`, v2.4.0, ahora con una línea de backup por app), portal (`raventechs.github.io`), código de cada repo y lo que Ruben confirmó de palabra. Las tildes que se marcan tocando el tablero se guardan solo en el celular, así que este archivo es la referencia compartida.
 
+## Actualización del 2/11/2026 (etapa comercial — leer primero)
+
+**Kit de venta por app (demo + instructivo con PDF + folleto).** Las 16 apps que se pueden vender lo tienen completo y están en la app de vendedores (raventechs.github.io/vendedores/, v1.7): CarneAR, PizzAR, PanAR, PuntoVenta, lavAR, BarbeAR, PeloteAR, SecuroPro, EmpresAR, Rodix, manejAr, SaludAR, MiAgenda, TimbreAR, CompraZona y GasAR. MTC, CharlAR, AhorrAR, legalAR y LogisAR figuran como "Próximamente" (no se envían).
+
+**Hecho hoy:**
+- Folletos nuevos: BarbeAR, EmpresAR, manejAr, CompraZona y Traductor de Hábitos (folletos/folleto-<app>.html; GasAR usa gasar/gasar-folleto.html).
+- Instructivos con PDF nuevos: TimbreAR, CompraZona, GasAR y Traductor de Hábitos (ayuda/index.html + Guia-<App>.pdf en cada repo).
+- Landing de entrega instantánea de la prueba: raventechs.github.io/probar/?app=<id>&ref=<código>. La app de vendedores manda ese link al cliente. Los datos salen del catálogo de vendedores/index.html: si cambia, regenerar la landing.
+- Página del portfolio (raventechs.github.io): enlaces a folletos corregidos (apuntaban a archivos que no existían) y se suma Traductor de Hábitos.
+- Traductor de Hábitos v2.0 (repo raventechs-traductor-habitos, Firebase traductor-habitos): estándar completo, clave de Groq fuera del código, reglas en qa/rules/habitos.rules y servidor de IA en qa/worker-ia/worker.js (sirve también a CharlAR). Probado en simulador, no contra Firebase real.
+
+**Pendiente de Ruben (página con botones: raventechs.github.io/gasar/qa/pegar-habitos.html):** crear clave nueva de Groq y borrar las viejas; crear el Worker raventechs-ia en Cloudflare con el secreto GROQ_KEY y pasar su dirección (se carga en IA_URL de Traductor de Hábitos y de CharlAR); CNAME habitos y Pages del repo; autorizar el dominio en Firebase Auth y pegar las reglas; probarla en el celular. Después pasar la app a vendible en vendedores (ok:true) y regenerar la landing.
+
+**Tanda única de reglas Firestore para más adelante (pegar una sola vez por app):** modelo nuevo de prueba de 14 días (demoHasta) en PuntoVenta, SecuroPro, EmpresAR, Rodix, SaludAR y MiAgenda; medir visitas por vendedor; TimbreAR parte 2.
+
+**Sin prueba de 14 días real todavía:** TimbreAR, CompraZona, GasAR y manejAr (la landing los presenta sin prometer 14 días). Botón "Instructivo" dentro de la app: falta en CompraZona, GasAR y Rodix.
+
 ## Actualización del 1/11/2026 (leer primero)
 
 **Cambios desde el 26/10 (la tabla de abajo todavía muestra el estado del 26/10, salvo lo marcado acá):**
