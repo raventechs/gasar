@@ -8,12 +8,15 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 ## Actualización del 2/11/2026 (etapa comercial — leer primero)
 
-**Kit de venta por app (demo + instructivo con PDF + folleto).** Las 16 apps que se pueden vender lo tienen completo y están en la app de vendedores (raventechs.github.io/vendedores/, v1.7): CarneAR, PizzAR, PanAR, PuntoVenta, lavAR, BarbeAR, PeloteAR, SecuroPro, EmpresAR, Rodix, manejAr, SaludAR, MiAgenda, TimbreAR, CompraZona y GasAR. MTC, CharlAR, AhorrAR, legalAR y LogisAR figuran como "Próximamente" (no se envían).
+**Sitio comercial en dominio propio (2/11 noche).** Google marcó `raventechs.github.io` con la alerta "Sitio peligroso" (Navegación segura). Se armó un sitio aparte en el repo `raventechs/Chicho` (vacío, reutilizado) publicado en **ventas.raventechsapp.com** (Pages en main, CNAME ventas → raventechs.github.io, HTTPS activo, dominio autorizado en Firebase Auth de raventech-vendedores): app de vendedores v1.9 en /vendedores/, landing en /probar/, folletos en /folletos/ (incluye folleto-gasar) y guías de GasAR y manejAr en /ayuda/gasar/ y /ayuda/manejar/. Los vendedores y clientes deben usar SOLO estos links nuevos. NO ponerle dominio propio al repo raventechs.github.io: ManejAr (clientes reales) y GasAR cuelgan de ahí y cambiarían de origen (se pierden sesiones y PWAs instaladas). Las apps manejAr, GasAR y LogisAR siguen en raventechs.github.io hasta tener dominio propio. Pendiente: pedir la revisión a Google (safebrowsing.google.com/safebrowsing/report_error) y, cuando el vendedor pruebe el link nuevo, dejar en el sitio viejo un aviso que redirija al nuevo.
+
+
+**Kit de venta por app (demo + instructivo con PDF + folleto).** Las 16 apps que se pueden vender lo tienen completo y están en la app de vendedores (ventas.raventechsapp.com/vendedores/, v1.7): CarneAR, PizzAR, PanAR, PuntoVenta, lavAR, BarbeAR, PeloteAR, SecuroPro, EmpresAR, Rodix, manejAr, SaludAR, MiAgenda, TimbreAR, CompraZona y GasAR. MTC, CharlAR, AhorrAR, legalAR y LogisAR figuran como "Próximamente" (no se envían).
 
 **Hecho hoy:**
 - Folletos nuevos: BarbeAR, EmpresAR, manejAr, CompraZona y Traductor de Hábitos (folletos/folleto-<app>.html; GasAR usa gasar/gasar-folleto.html).
 - Instructivos con PDF nuevos: TimbreAR, CompraZona, GasAR y Traductor de Hábitos (ayuda/index.html + Guia-<App>.pdf en cada repo).
-- Landing de entrega instantánea de la prueba: raventechs.github.io/probar/?app=<id>&ref=<código>. La app de vendedores manda ese link al cliente. Los datos salen del catálogo de vendedores/index.html: si cambia, regenerar la landing.
+- Landing de entrega instantánea de la prueba: ventas.raventechsapp.com/probar/?app=<id>&ref=<código>. La app de vendedores manda ese link al cliente. Los datos salen del catálogo de vendedores/index.html: si cambia, regenerar la landing.
 - Página del portfolio (raventechs.github.io): enlaces a folletos corregidos (apuntaban a archivos que no existían) y se suma Traductor de Hábitos.
 - Traductor de Hábitos v2.0 (repo raventechs-traductor-habitos, Firebase traductor-habitos): estándar completo, clave de Groq fuera del código, reglas en qa/rules/habitos.rules y servidor de IA en qa/worker-ia/worker.js (sirve también a CharlAR). Probado en simulador, no contra Firebase real.
 
