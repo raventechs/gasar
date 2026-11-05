@@ -1,0 +1,128 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CarneAR Training Wheels — pegar las reglas</title>
+<style>body{font:17px/1.5 Arial,sans-serif;background:#f4f6fb;color:#10213f;margin:0}.w{max-width:760px;margin:auto;padding:14px}h1{font-size:26px}.c{background:#fff;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #0001}h2{margin:0 0 6px}.b{display:block;text-align:center;background:#1d4ed8;color:#fff;text-decoration:none;border:0;border-radius:12px;padding:14px;margin:8px 0;font-size:17px;font-weight:700;width:100%;box-sizing:border-box}.g{background:#16a34a;cursor:pointer}.r{background:#b91c1c}.s{font-size:15px;color:#334}textarea{width:100%;height:120px;font:12px monospace;box-sizing:border-box}code{background:#eef;padding:1px 5px;border-radius:5px}</style></head><body><div class="w">
+<h1>CarneAR · Training Wheels — pegar las reglas</h1>
+<p class="s">Es un solo cambio, se hace una sola vez. <b>No borra ni modifica ningún dato</b>: solo permite que la cuenta nueva guarde si es Principiante. Sin este paso la app igual funciona (los clientes nuevos quedan en modo completo, como hoy).</p>
+<section class="c"><h2>1) Abrir las reglas de Firebase</h2>
+<a class="b" href="https://console.firebase.google.com/project/carnear-1d2c4/firestore/rules" target="_blank" rel="noopener">Abrir las reglas de CarneAR</a>
+<p class="s">Si te pide entrar, usá tu cuenta de Google de siempre.</p></section>
+<section class="c"><h2>2) Copiar el texto completo</h2>
+<button class="b g" onclick="cp('r',this)">Copiar las reglas (completas)</button>
+<textarea id="r" readonly>rules_version = &#x27;2&#x27;;
+// CarneAR — Reglas Firestore (FASE 3: FASE 2 + campo &quot;modo&quot; de Training Wheels en la alta del cliente).
+// Cambio respecto de la Fase 2: SOLO la función clienteInicialValido (acepta el campo &quot;modo&quot; y solo con el valor &quot;principiante&quot;).
+// Publicar en Firebase Console → proyecto carnear-1d2c4 → Firestore Database → Reglas → pegar TODO → Publicar.
+// Pueden publicarse antes o después de la app: si la app crea la cuenta sin &quot;modo&quot;, queda como Avanzado (igual que hoy).
+// El cliente NO puede cambiar su modo (la regla de update no lo permite); solo el admin.
+// Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────── Funciones ─────────
+    function logueado() { return request.auth != null; }
+    function esAnonimo() { return logueado() &amp;&amp; request.auth.token.firebase.sign_in_provider == &#x27;anonymous&#x27;; }
+    function esDueno(owner) { return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.uid == owner; }
+    function esAdmin() {
+      return logueado()
+        &amp;&amp; request.auth.token.email == &#x27;rgaraventa@gmail.com&#x27;
+        &amp;&amp; request.auth.token.email_verified == true;
+    }
+    function miEmail(email) {
+      return logueado() &amp;&amp; !esAnonimo() &amp;&amp; request.auth.token.email != null
+        &amp;&amp; request.auth.token.email.lower() == email.lower();
+    }
+    // Cajero registrado (por código de sucursal válido) en el negocio / en una sucursal puntual
+    function cajeroRef(owner) { return /databases/$(database)/documents/negocios/$(owner)/cajeros/$(request.auth.uid); }
+    function esCajero(owner) { return esAnonimo() &amp;&amp; exists(cajeroRef(owner)); }
+    function cajeroDeSuc(owner, sid) { return esCajero(owner) &amp;&amp; get(cajeroRef(owner)).data.sucursalId == sid; }
+    // Plan inicial que la app crea sola al primer ingreso (plan básico)
+    function clienteInicialValido(email) {
+      return request.resource.data.keys().hasOnly([&#x27;email&#x27;,&#x27;nombre&#x27;,&#x27;plan&#x27;,&#x27;activo&#x27;,&#x27;features&#x27;,&#x27;limiteSucursales&#x27;,&#x27;creadoEn&#x27;,&#x27;uid&#x27;,&#x27;demoHasta&#x27;,&#x27;modo&#x27;])
+        &amp;&amp; (!(&#x27;modo&#x27; in request.resource.data) || request.resource.data.modo == &#x27;principiante&#x27;)
+        &amp;&amp; (!(&#x27;demoHasta&#x27; in request.resource.data) || request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;))
+        &amp;&amp; request.resource.data.plan == &#x27;basico&#x27;
+        &amp;&amp; request.resource.data.activo == true
+        &amp;&amp; request.resource.data.limiteSucursales == 1
+        &amp;&amp; request.resource.data.features.keys().hasOnly([&#x27;gastos&#x27;,&#x27;ticket&#x27;,&#x27;proveedores&#x27;])
+        &amp;&amp; request.resource.data.features.gastos == false
+        &amp;&amp; request.resource.data.features.ticket == false
+        &amp;&amp; request.resource.data.features.proveedores == false;
+    }
+
+    // ───────── Clientes (planes): el cliente lee SOLO el suyo; el admin todo ─────────
+    match /clientes/{email} {
+      allow get: if esAdmin() || miEmail(email);
+      allow list: if esAdmin();
+      allow create: if esAdmin() || (miEmail(email) &amp;&amp; clienteInicialValido(email));
+      // El cliente solo puede guardar su propio uid y, una única vez, el fin de su prueba gratis (máx. 15 días). No cambia plan, activo ni features.
+      allow update: if esAdmin()
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;uid&#x27;])
+            &amp;&amp; request.resource.data.uid == request.auth.uid)
+        || (miEmail(email)
+            &amp;&amp; request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;demoHasta&#x27;])
+            &amp;&amp; !(&#x27;demoHasta&#x27; in resource.data)
+            &amp;&amp; request.resource.data.demoHasta &lt;= request.time + duration.value(15, &#x27;d&#x27;));
+      allow delete: if esAdmin();
+    }
+
+    // ───────── Links de sucursal (código del cajero) ─────────
+    match /carnearLinks/{cod} {
+      allow get: if logueado();                                   // el cajero entra con el código
+      allow list: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;   // backup del dueño (where uid == suyo)
+      allow create: if esDueno(request.resource.data.uid);
+      allow update: if esDueno(resource.data.uid) &amp;&amp; request.resource.data.uid == resource.data.uid;
+      allow delete: if esDueno(resource.data.uid);
+    }
+
+    // ───────── Datos del negocio ─────────
+    match /negocios/{owner} {
+      allow read, write: if esDueno(owner);
+      allow read: if esAdmin();
+      allow get: if esCajero(owner);                              // cajero registrado lee features del negocio
+
+      // Alta del cajero: solo con un código de SU negocio
+      match /cajeros/{cid} {
+        allow create, update: if esAnonimo() &amp;&amp; request.auth.uid == cid
+          &amp;&amp; exists(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo))
+          &amp;&amp; get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.uid == owner
+          &amp;&amp; get(/databases/$(database)/documents/carnearLinks/$(request.resource.data.codigo)).data.sucursalId == request.resource.data.sucursalId;
+        allow read: if esDueno(owner) || esAdmin() || (esAnonimo() &amp;&amp; request.auth.uid == cid);
+        allow delete: if esDueno(owner);
+      }
+
+      match /{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        // Cajero (acceso por link): opera catálogo, stock, ventas y gastos
+        allow read, write: if esCajero(owner)
+          &amp;&amp; col in [&#x27;productos&#x27;,&#x27;insumos&#x27;,&#x27;proveedores&#x27;,&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+        allow read: if esCajero(owner) &amp;&amp; col == &#x27;sucursales&#x27;;
+      }
+
+      match /sucursales/{sid}/{col}/{doc} {
+        allow read, write: if esDueno(owner);
+        allow read: if esAdmin();
+        allow read, write: if cajeroDeSuc(owner, sid) &amp;&amp; col in [&#x27;ventas&#x27;,&#x27;gastos&#x27;];
+      }
+    }
+
+    // ───────── Ventas antiguas en la raíz (solo lectura de las propias) ─────────
+    match /ventas/{id} {
+      allow read: if logueado() &amp;&amp; resource.data.uid == request.auth.uid;
+    }
+
+    // ───────── Registro de errores: cualquiera escribe, solo el admin lee ─────────
+    match /errores/{id} {
+      allow create: if logueado();
+      allow read: if esAdmin();
+    }
+
+    // Todo lo demás: cerrado
+    match /{path=**} { allow read, write: if false; }
+  }
+}
+</textarea></section>
+<section class="c"><h2>3) Pegar y publicar</h2>
+<p class="s">a) En Firebase tocá dentro del cuadro de reglas, <b>seleccioná todo</b> y <b>borrá</b>.<br>b) <b>Pegá</b> el texto copiado.<br>c) Tocá <b>Publicar</b>.<br>d) Avisame “listo” y lo pruebo con una cuenta nueva.</p></section>
+<script>function cp(id,b){var t=document.getElementById(id);t.select();t.setSelectionRange(0,999999);try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}var o=b.textContent;b.textContent='✔ Copiado';setTimeout(function(){b.textContent=o},1800)}</script>
+</div></body></html>
