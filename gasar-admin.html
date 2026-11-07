@@ -1,8 +1,9 @@
 <!--
   GasAR · PANEL DE ADMINISTRACIÓN
-  Versión: 1.5.0-backup
-  Fecha: 2026-10-26
+  Versión: 1.5.1-instructivo
+  Fecha: 2026-11-07
   Changelog:
+   - 1.5.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
    - 1.5.0-backup: BACKUP estándar. Automático una vez por día al entrar el administrador (baja un JSON con todas las colecciones de la distribuidora y deja copia en IndexedDB), botón manual y restaurar catálogo (productos, marcas, puntos de venta, revendedores, proveedores) en la pestaña "Usuarios y backup". El historial de movimientos no se restaura desde el cliente: lo protegen las reglas.
    - 1.4.0-practica: MODO PRÁCTICA. Desde Modo Raven se crea una distribuidora de mentira ya armada (precios $22.000/$33.000/$88.000, marcas, stock, 2 camionetas, reventa, 2 revendedores y 3 usuarios de prueba con clave 123456) y una guía de 10 pasos con tildes dentro del Resumen. Nada se borra: para empezar de cero se crea otra práctica.
    - 1.3.1: el ingreso con Google ahora explica el error (dominio no autorizado, proveedor sin habilitar, etc.) y reintenta por redirección si el celular bloquea la ventana.
@@ -194,7 +195,7 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.5.0-backup';
+const VERSION='1.5.1-instructivo';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='';
 
@@ -668,7 +669,7 @@ const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas'
 function head(){
   const adm=S.perfil.rol==='administrador'||S.raven;
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">${esc((S.tenant||{}).nombre||'')} · ${esc(S.perfil.nombre)}${S.online?'':' · sin señal'}</span>
-  <button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button>${S.raven?'<button class="ico" data-a="salirT">Distribuidoras</button>':''}<button class="ico" data-a="salir">Salir</button></div>
+  <a class="ico" href="ayuda/" target="_blank" rel="noopener" aria-label="Instructivo" style="text-decoration:none;display:inline-flex;align-items:center">❓</a><button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button>${S.raven?'<button class="ico" data-a="salirT">Distribuidoras</button>':''}<button class="ico" data-a="salir">Salir</button></div>
   <nav>${TABS.filter(([k])=>adm||k!=='usuarios').map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}</button>`).join('')}</nav></header>`;
 }
 function stockMap(){

@@ -1,8 +1,9 @@
 <!--
   GasAR · APP DEL VENDEDOR
-  Versión: 1.3.0-etapa4
-  Fecha: 2026-10-02
+  Versión: 1.3.1-instructivo
+  Fecha: 2026-11-07
   Changelog:
+   - 1.3.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
    - 1.3.0-etapa4: GASTO (combustible, mantenimiento, etc. descontado de la caja) y RETIRAR PLATA
      (retiro del dueño, depósito bancario) con motivo; ambos entran al efectivo esperado del cierre y de la rendición.
    - 1.2.0-etapa3: punto de venta revendedores, cuenta corriente, cobros, devolución de envases, comprobantes.
@@ -133,7 +134,7 @@ input[type=text],input[type=email],input[type=password],input[type=number]{width
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.3.0-etapa4';
+const VERSION='1.3.1-instructivo';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const ADMIN_PIN='';
 
@@ -499,7 +500,7 @@ function showSplash(on){$('#splash').classList.toggle('off',!on)}
 function head(){
   return `<header><span class="logo" id="logo">GasAR</span><span class="who">${esc(S.perfil.nombre)} · ${esc((S.ubiDoc||{}).nombre||'')}</span>
   <span class="badge ${S.online?'ok':'off'}">${S.online?'En línea':'Sin señal'}${S.pend?' · '+S.pend+' por enviar':''}</span>
-  <button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button></header>`;
+  <a class="ico" href="ayuda/" target="_blank" rel="noopener" aria-label="Instructivo" style="text-decoration:none;display:inline-flex;align-items:center">❓</a><button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button></header>`;
 }
 function vLogin(){
   return `<main><div class="card" style="margin-top:12vh"><h1 id="logo" style="font-size:40px;color:var(--pri)">GasAR</h1><p class="mut">Ingresá con tu usuario.</p>
