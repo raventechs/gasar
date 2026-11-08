@@ -127,7 +127,8 @@ Regla: cuentas anteriores a 9/11/2026 conservan todo; las nuevas lo ven en la pr
 - **PizzAR v3.1 / PanAR v1.9:** Varias sucursales (1 / hasta 3 / todas); PizzAR además comandas, stock por receta; PanAR stock y recetas. Requiere pegar firestore.rules.
 - **BarbeAR v3.2:** sucursales y barberos adicionales; agenda por barbero con carga tocando un horario libre; link de reserva en ventas.raventechsapp.com (probar).
 - **SecuroPro v2.4:** Agenda y alertas. **manejAr v2.5:** Flota + Análisis avanzado. **CompraZona:** Destacada + Estadísticas de ventas. **GasAR v1.7:** Revendedores y cuentas corrientes + Reparto en camionetas.
-- **Pendiente:** TimbreAR (2 plus), EmpresAR, menús admin con números tipeados (lavAR, PuntoVenta, MiAgenda, SaludAR cupo) → pasar a botones; CompraZona plusStats puede auto-activarse el dueño (endurecer reglas).
+- **Menús admin:** ya sin números tipeados (lavAR, PuntoVenta, MiAgenda, SaludAR). MiAgenda: Recordatorios PLUS reparados. BarbeAR v3.2: botón Turno con calendario.
+- **Pendiente:** TimbreAR (parte 2 + 2 plus, requiere reglas), EmpresAR (repo sin clonar); CompraZona plusStats puede auto-activarse el dueño (endurecer reglas).
 
 ## Cómo usar este archivo
 
