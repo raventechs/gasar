@@ -121,6 +121,14 @@ Regla de Ruben: todas las apps deben tener Modo Práctica (o demo) por defecto. 
 - **Dato a confirmar:** el token de Meta de CentralbotAr vence cada 24 h según el tablero y cada 60 días según el portal.
 - **Repo `Chicho`:** vacío.
 
+## Adicionales comerciales (8/11/2026)
+
+Regla: cuentas anteriores a 9/11/2026 conservan todo; las nuevas lo ven en la prueba con ⭐ y después hay que activarlo con botones en el menú admin.
+- **PizzAR v3.1 / PanAR v1.9:** Varias sucursales (1 / hasta 3 / todas); PizzAR además comandas, stock por receta; PanAR stock y recetas. Requiere pegar firestore.rules.
+- **BarbeAR v3.2:** sucursales y barberos adicionales; agenda por barbero con carga tocando un horario libre; link de reserva en ventas.raventechsapp.com (probar).
+- **SecuroPro v2.4:** Agenda y alertas. **manejAr v2.5:** Flota + Análisis avanzado. **CompraZona:** Destacada + Estadísticas de ventas. **GasAR v1.7:** Revendedores y cuentas corrientes + Reparto en camionetas.
+- **Pendiente:** TimbreAR (2 plus), EmpresAR, menús admin con números tipeados (lavAR, PuntoVenta, MiAgenda, SaludAR cupo) → pasar a botones; CompraZona plusStats puede auto-activarse el dueño (endurecer reglas).
+
 ## Cómo usar este archivo
 
 1. Leerlo al arrancar cualquier tarea sobre las apps.
