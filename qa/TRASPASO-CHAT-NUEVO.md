@@ -46,7 +46,7 @@ Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el
 | SaludAR | saludar | saludar.raventechsapp.com | v2.10 (fecha en hora argentina, SW red primero, menú admin con sesión activa, selector de cuentas; Familiar probado) |
 | Rodix | vehigest-ar | | v1.9.4 |
 Otros repos: raventechs.github.io (portfolio, redirige a ventas), panel, mdtc (MTC), legalar, Garrafar, charlar, centralbotAr, ahorrar, raventechs-traductor-habitos, promptAr, admin y betas.
-Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.4). Estado del portfolio: `gasar/ESTADO-PORTFOLIO.md`. Auditorías y estándar: `gasar/qa/`.
+Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.5). Estado del portfolio: `gasar/ESTADO-PORTFOLIO.md`. Auditorías y estándar: `gasar/qa/`.
 
 ## 4. Modelos y reglas comerciales ya definidos (no reinventar)
 - **Prueba de 14 días**: campo `demoHasta`. Ausente = cliente existente (no ve nada); null = activado. En las apps con el modelo nuevo (CarneAR, PizzAR, PanAR, lavAR, BarbeAR, PeloteAR, GasAR, CompraZona, manejAr, TimbreAR) la prueba NO bloquea: al vencer aparece un cartel rojo titilante fijo que no se cierra. PuntoVenta, SecuroPro, Rodix, SaludAR, MiAgenda y EmpresAR usan el modelo viejo (status/demoExpiry) y Ruben decidió no migrarlos. WhatsApp de activación: 5491136547592.
@@ -85,8 +85,9 @@ Observaciones de la auditoría de SaludAR: sigue con el modelo viejo de prueba (
 
 ## 6b. Reglas Firestore (archivos completos para pegar)
 - PizzAR y PanAR (idénticas): `pizzar/firestore.rules` y `panar/firestore.rules`. Ya publicadas por Ruben.
-- CompraZona v0.3: ver pendiente 1.
+- CompraZona v0.3: ya publicadas por Ruben (8/11).
+- Vendedores v2.1 (proyecto raventech-vendedores: vendedores, envios, visitas, seguimientos): `Chicho/vendedores/firestore.rules` y `gasar/qa/rules/vendedores.rules`. Ya publicadas por Ruben (8/11).
 - Cada app tiene sus reglas en su repo (`firestore.rules`, `firestore.rules.txt` o `firestore-rules.txt`). Ruben solo pega el archivo completo.
 
 ## 7. Memoria
-Los hechos durables están en la memoria del proyecto (`areas/etapa-comercial.md`, entradas hasta el 8/11/2026 16:45). Este archivo agrega lo que la memoria no guarda: entorno de pruebas, permisos, orden de pendientes y mapa de versiones.
+Los hechos durables están en la memoria del proyecto (`areas/etapa-comercial.md`, entradas hasta el 8/11/2026 17:00; lo posterior está en la sección 5 de este archivo y en gasar/ESTADO-PORTFOLIO.md). Este archivo agrega lo que la memoria no guarda: entorno de pruebas, permisos, orden de pendientes y mapa de versiones.
