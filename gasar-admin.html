@@ -1,8 +1,9 @@
 <!--
   GasAR · PANEL DE ADMINISTRACIÓN
-  Versión: 1.5.1-instructivo
-  Fecha: 2026-11-07
+  Versión: 1.6.0-prueba
+  Fecha: 2026-11-08
   Changelog:
+   - 1.6.0-prueba: PRUEBA DE 14 DÍAS SIN BLOQUEO. Las distribuidoras nuevas nacen con demoHasta (14 días). Mientras dura, cartel ámbar con los días; al vencer, cartel rojo titilante fijo que no se puede cerrar, con botón para activar por WhatsApp. La app sigue funcionando. En Modo Raven: etiqueta de prueba y botones «Activar cliente» y «+7 días». Las distribuidoras que ya existen no tienen demoHasta: no ven nada. No toca datos ni reglas.
    - 1.5.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
    - 1.5.0-backup: BACKUP estándar. Automático una vez por día al entrar el administrador (baja un JSON con todas las colecciones de la distribuidora y deja copia en IndexedDB), botón manual y restaurar catálogo (productos, marcas, puntos de venta, revendedores, proveedores) en la pestaña "Usuarios y backup". El historial de movimientos no se restaura desde el cliente: lo protegen las reglas.
    - 1.4.0-practica: MODO PRÁCTICA. Desde Modo Raven se crea una distribuidora de mentira ya armada (precios $22.000/$33.000/$88.000, marcas, stock, 2 camionetas, reventa, 2 revendedores y 3 usuarios de prueba con clave 123456) y una guía de 10 pasos con tildes dentro del Resumen. Nada se borra: para empezar de cero se crea otra práctica.
@@ -80,6 +81,15 @@ input,select{width:100%;min-height:42px;border:1px solid var(--line);border-radi
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:99px;font-weight:600;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 #toast.on{opacity:1}#toast.err{background:var(--bad);color:#fff}
 .login{max-width:380px;margin:12vh auto 0;padding:0 14px}
+
+/* Prueba de 14 días sin bloqueo: cartel fijo */
+.barPrueba{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:60;border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;font-size:15px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.barPrueba a{background:#fff;color:#7f1d1d;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;text-decoration:none;white-space:nowrap}
+.barPrueba.curso{background:#f59e0b;color:#2b1a00;font-size:14px;padding:9px 12px}.barPrueba.curso a{color:#2b1a00;border:1px solid #2b1a00}
+.barPrueba.venc{background:#c62828;color:#fff;border:2px solid #fff;animation:blinkPrueba 1s infinite}
+@keyframes blinkPrueba{0%,100%{background:#c62828;opacity:1}50%{background:#7f1d1d;opacity:.8}}
+@media (prefers-reduced-motion:reduce){.barPrueba.venc{animation:none}}
+body.conPrueba{padding-bottom:76px}
 </style>
 <script id="rt-pwa-v2">
 /* RavenTechs · Cartel "Instalar la app" v2 — Android/Chrome (botón Instalar) + iPhone/Safari (instrucciones). Se oculta si la app ya está instalada. */
@@ -226,6 +236,19 @@ const auth=firebase.auth(),db=firebase.firestore();
 const FV=firebase.firestore.FieldValue,TS=firebase.firestore.Timestamp;
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistencia',e.code));
 const T=()=>db.collection('tenants').doc(S.tid);
+/* ---------- Prueba de 14 días (sin bloqueo): cartel fijo que no se puede cerrar al vencer ---------- */
+const WA_RAVEN='5491136547592';
+function pruebaEstado(t){if(!t||!t.demoHasta||t.practica)return null;const ms=t.demoHasta.toMillis?t.demoHasta.toMillis():+t.demoHasta;if(!ms)return null;const d=Math.ceil((ms-Date.now())/864e5);return d>0?{vencida:false,dias:d}:{vencida:true,dias:0}}
+function pintarPrueba(){
+  let b=document.getElementById('barPrueba');
+  const e=(S.user&&S.perfil&&!S.raven)?pruebaEstado(S.tenant):null;
+  if(!e){if(b)b.remove();document.body.classList.remove('conPrueba');return}
+  if(!b){b=document.createElement('div');b.id='barPrueba';document.body.appendChild(b)}
+  document.body.classList.add('conPrueba');
+  const msg=encodeURIComponent('Hola, quiero activar GasAR para mi distribuidora'+(S.tenant&&S.tenant.nombre?' ('+S.tenant.nombre+')':'')+'.');
+  b.className='barPrueba '+(e.vencida?'venc':'curso');
+  b.innerHTML='<span>'+(e.vencida?'⚠️ Terminó tu prueba gratis. Activá GasAR para seguir sin esta alerta.':'Prueba gratis: te '+(e.dias===1?'queda 1 día':'quedan '+e.dias+' días'))+'</span><a href="https://wa.me/'+WA_RAVEN+'?text='+msg+'" target="_blank" rel="noopener">Activar</a>'}
+
 const sk=(u,p,m,t)=>[u,p,m,t].join('__');
 const soyRaven=u=>u&&u.email===RAVEN_EMAIL&&u.emailVerified;
 
@@ -398,11 +421,13 @@ function anular(id){
   }
   audit(b,'anular_venta',id.slice(0,4).toUpperCase()+' '+money(v.total)+' · '+mo.trim());commit(b,'Venta anulada');
 }
+async function activarDist(id){try{await db.collection('tenants').doc(id).update({demoHasta:null,plan:'activo'});toast('Cliente activado: sin cartel')}catch(e){console.error(e);toast('No se pudo activar ('+(e.code||'error')+')',true)}}
+async function masDias(id){const t=S.tenants.find(x=>x.id===id)||{};const cur=t.demoHasta&&t.demoHasta.toMillis?t.demoHasta.toMillis():0;const nuevo=Math.max(Date.now(),cur)+7*864e5;try{await db.collection('tenants').doc(id).update({demoHasta:TS.fromMillis(nuevo)});toast('+7 días de prueba')}catch(e){console.error(e);toast('No se pudo cambiar ('+(e.code||'error')+')',true)}}
 async function crearDistribuidora(){
   const n=val('dn_n'),e=val('dn_e'),p=document.getElementById('dn_p').value,an=val('dn_a');
   if(!n||!e||!an||p.length<6)return toast('Completá todo (clave de 6+ caracteres)',true);
   const tid=db.collection('tenants').doc().id,b=db.batch(),t=db.collection('tenants').doc(tid);
-  b.set(t,{nombre:n,plan:'demo',limiteCamionetas:3,limiteUsuarios:10,creadoTs:TS.now()});
+  b.set(t,{nombre:n,plan:'demo',limiteCamionetas:3,limiteUsuarios:10,creadoTs:TS.now(),demoHasta:TS.fromMillis(Date.now()+14*864e5)});
   [[10,'Garrafa 10 kg'],[15,'Garrafa 15 kg'],[40,'Garrafa 40 kg']].forEach(([kg,nom])=>b.set(t.collection('productos').doc(nid()),{nombre:nom,kg,precio:0,precioEnvase:0,stockMinimo:0,activo:true,orden:kg}));
   b.set(t.collection('ubicaciones').doc(nid()),{nombre:'Central',tipo:'central',activa:true,creadaTs:TS.now()});
   try{await b.commit();await crearUsuarioAuth(e,p,{tenantId:tid,nombre:an,rol:'administrador',ubicacionId:null});toast('Distribuidora creada');entrarTenant(tid)}
@@ -657,7 +682,7 @@ function vLogin(){return `<div class="login card"><h1 class="logo" id="logo" sty
 <div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button><p id="gerr" class="bad" style="font-size:14px;margin-top:10px"></p></div>`}
 function vRaven(){
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">Modo Raven</span><button class="ico" data-a="salir">Salir</button></div></header><main>
-  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.practica?'PRÁCTICA':(t.plan||''))}</span></span><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
+  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.practica?'PRÁCTICA':(t.plan||''))}</span>${(e=>e?` <span class="tag" style="background:${e.vencida?'#c62828':'#f59e0b'};color:${e.vencida?'#fff':'#2b1a00'}">${e.vencida?'PRUEBA VENCIDA':'PRUEBA · '+e.dias+' d'}</span>`:'')(pruebaEstado(t))}</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${pruebaEstado(t)?`<button class="btn sm" data-a="activarDist" data-id="${t.id}">✅ Activar cliente</button><button class="btn sm" data-a="masDias" data-id="${t.id}">+7 días</button>`:''}<button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></span></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
   <div class="card"><h2>Crear distribuidora nueva</h2><div class="f">
   <div><label>Nombre de la distribuidora</label><input id="dn_n"></div><div><label>Nombre del dueño</label><input id="dn_a"></div>
   <div><label>Mail del dueño</label><input id="dn_e" type="email"></div><div><label>Clave inicial</label><input id="dn_p" type="password"></div></div>
@@ -1013,6 +1038,7 @@ function vGastos(){
 }
 let lastFocus=null;
 function render(){
+  pintarPrueba();
   const r=$('#root');if(!r)return;
   const a=document.activeElement;if(a&&['INPUT','SELECT'].includes(a.tagName)&&r.contains(a))return; // no pisar lo que se está escribiendo
   if(!S.user||!S.perfil){r.innerHTML=vLogin();return}
@@ -1024,7 +1050,7 @@ function render(){
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const D=el.dataset;
-  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),crearDist:crearDistribuidora,crearPractica,pasoTilde:()=>pasoTilde(+D.v),
+  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),activarDist:()=>activarDist(D.id),masDias:()=>masDias(D.id),crearDist:crearDistribuidora,crearPractica,pasoTilde:()=>pasoTilde(+D.v),
     tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
     tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
     anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,

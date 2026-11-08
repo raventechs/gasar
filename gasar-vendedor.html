@@ -1,8 +1,9 @@
 <!--
   GasAR · APP DEL VENDEDOR
-  Versión: 1.3.1-instructivo
-  Fecha: 2026-11-07
+  Versión: 1.4.0-prueba
+  Fecha: 2026-11-08
   Changelog:
+   - 1.4.0-prueba: cartel de prueba de 14 días (sin bloqueo): ámbar con los días restantes y, al vencer, rojo titilante fijo que no se puede cerrar, con botón para activar por WhatsApp. La app sigue funcionando. Lee demoHasta de la distribuidora; no toca datos ni reglas.
    - 1.3.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
    - 1.3.0-etapa4: GASTO (combustible, mantenimiento, etc. descontado de la caja) y RETIRAR PLATA
      (retiro del dueño, depósito bancario) con motivo; ambos entran al efectivo esperado del cierre y de la rendición.
@@ -86,6 +87,15 @@ input[type=text],input[type=email],input[type=password],input[type=number]{width
 .tag{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--chip)}
 .tag.bad{color:var(--bad)}.tag.w{color:var(--warn)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Prueba de 14 días sin bloqueo: cartel fijo */
+.barPrueba{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:60;border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;font-size:15px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.barPrueba a{background:#fff;color:#7f1d1d;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;text-decoration:none;white-space:nowrap}
+.barPrueba.curso{background:#f59e0b;color:#2b1a00;font-size:14px;padding:9px 12px}.barPrueba.curso a{color:#2b1a00;border:1px solid #2b1a00}
+.barPrueba.venc{background:#c62828;color:#fff;border:2px solid #fff;animation:blinkPrueba 1s infinite}
+@keyframes blinkPrueba{0%,100%{background:#c62828;opacity:1}50%{background:#7f1d1d;opacity:.8}}
+@media (prefers-reduced-motion:reduce){.barPrueba.venc{animation:none}}
+body.conPrueba{padding-bottom:76px}
 </style>
 <script id="rt-pwa-v2">
 /* RavenTechs · Cartel "Instalar la app" v2 — Android/Chrome (botón Instalar) + iPhone/Safari (instrucciones). Se oculta si la app ya está instalada. */
@@ -166,6 +176,19 @@ const auth=firebase.auth(),db=firebase.firestore();
 const FV=firebase.firestore.FieldValue,TS=firebase.firestore.Timestamp;
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistencia',e.code));
 const T=()=>db.collection('tenants').doc(S.tid);
+/* ---------- Prueba de 14 días (sin bloqueo): cartel fijo que no se puede cerrar al vencer ---------- */
+const WA_RAVEN='5491136547592';
+function pruebaEstado(t){if(!t||!t.demoHasta||t.practica)return null;const ms=t.demoHasta.toMillis?t.demoHasta.toMillis():+t.demoHasta;if(!ms)return null;const d=Math.ceil((ms-Date.now())/864e5);return d>0?{vencida:false,dias:d}:{vencida:true,dias:0}}
+function pintarPrueba(){
+  let b=document.getElementById('barPrueba');
+  const e=(S.user&&S.perfil&&!S.raven)?pruebaEstado(S.tenant):null;
+  if(!e){if(b)b.remove();document.body.classList.remove('conPrueba');return}
+  if(!b){b=document.createElement('div');b.id='barPrueba';document.body.appendChild(b)}
+  document.body.classList.add('conPrueba');
+  const msg=encodeURIComponent('Hola, quiero activar GasAR para mi distribuidora'+(S.tenant&&S.tenant.nombre?' ('+S.tenant.nombre+')':'')+'.');
+  b.className='barPrueba '+(e.vencida?'venc':'curso');
+  b.innerHTML='<span>'+(e.vencida?'⚠️ Terminó tu prueba gratis. Activá GasAR para seguir sin esta alerta.':'Prueba gratis: te '+(e.dias===1?'queda 1 día':'quedan '+e.dias+' días'))+'</span><a href="https://wa.me/'+WA_RAVEN+'?text='+msg+'" target="_blank" rel="noopener">Activar</a>'}
+
 const sk=(u,p,m,t)=>[u,p,m,t].join('__');
 
 function cleanup(){S.unsub.forEach(f=>{try{f()}catch(e){}});S.unsub=[];S.productos=[];S.marcas=[];S.saldos={};S.saldoRows=[];S.turno=null;S.movCaja=[];S.ventas=[];S.cargasIn=[];S.camionetas=[];S.cargasOut=[];S.centralOn=false;S.cg=null;S.rc=null;S.rend={};S.revOn=false;S.revs=[];S.ctaSaldos={};S.ctaEnv={};S.rv=null;S.cb=null;S.re=null;S.comp=null}
@@ -187,6 +210,7 @@ auth.onAuthStateChanged(async u=>{
 
 function listen(){
   const t=T(),u=S.ubi;
+  S.unsub.push(t.onSnapshot(s=>{S.tenant=s.exists?s.data():null;render()},e=>console.warn('tenant',e.code)));
   S.unsub.push(t.collection('productos').where('activo','==',true).onSnapshot(s=>{S.productos=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.orden||a.kg||0)-(b.orden||b.kg||0));render()}));
   S.unsub.push(t.collection('marcas').where('activa','==',true).onSnapshot(s=>{S.marcas=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.nombre.localeCompare(b.nombre));render()}));
   S.unsub.push(t.collection('ubicaciones').doc(u).onSnapshot(s=>{S.ubiDoc=s.exists?s.data():null;if(S.ubiDoc&&S.ubiDoc.tipo==='central'&&!S.centralOn){S.centralOn=true;listenCentral()}if(S.ubiDoc&&S.ubiDoc.tipo==='revendedores'&&!S.revOn){S.revOn=true;listenRev()}render()}));
@@ -715,6 +739,7 @@ function vRetiro(){
   <div class="bar"><div class="in"><button class="btn ok" data-a="rtok">CONFIRMAR RETIRO</button></div></div>`;
 }
 function render(){
+  pintarPrueba();
   const r=$('#root');if(!r)return;
   const act=document.activeElement;if(act&&(act.id==='fondo'||act.id==='contado'||act.id==='em'||act.id==='pw'||act.id==='rend_efe'||act.id==='rv_pag'||act.id==='gx_monto'||act.id==='gx_nota'||act.id==='rt_monto'||act.id==='rt_nota'||act.id==='cb_monto'||(act.classList&&act.classList.contains('rin'))))return;
   if(!S.user||!S.perfil){r.innerHTML=vLogin();return}
