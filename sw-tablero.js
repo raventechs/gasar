@@ -1,5 +1,5 @@
 // sw-tablero.js — Service Worker del Tablero RavenTechs (red primero; la copia guardada solo si no hay conexión)
-const CACHE = 'tablero-v1';
+const CACHE = 'tablero-v2';
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.add('/gasar/raventechs-tablero.html').catch(() => {})));
   self.skipWaiting();
