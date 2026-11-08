@@ -74,8 +74,8 @@ async def main():
         chk('whatsapp al 549 + teléfono limpio',wa.startswith('https://wa.me/5491155551234?text='))
         await pg.evaluate("()=>document.getElementById('fd-cerrar').click()")
         # Cierre de caja y dashboard-sumas
-        await pg.evaluate("()=>document.querySelector('.mob-item[data-page=ventas]').click()"); await pg.wait_for_timeout(500)
-        t=await pg.evaluate("()=>document.getElementById('page-ventas').innerText")
+        await pg.evaluate("()=>document.querySelector('.mob-item[data-page=vender]').click()"); await pg.wait_for_timeout(500)
+        t=await pg.evaluate("()=>document.getElementById('page-vender').innerText")
         chk('cierre: total cobrado = 1500+1000+500+... ',True)
         print(t.replace('\n',' | ')[:400])
         # Cobrado esperado: efectivo 1500+1000+500=3000 ; transferencia 2000 ; total 5000 ; fiado 1500
@@ -85,6 +85,10 @@ async def main():
         chk('cierre: fiado del día $1.500',('En cuenta (no entró plata)' in t and '1.500' in t))
         wau=await pg.evaluate("()=>{let u='';window.open=x=>{u=x};document.getElementById('btn-cerrar-caja').click();return decodeURIComponent(u)}")
         chk('cierre: botón abre WhatsApp con el resumen',wau.startswith('https://wa.me/?text=') and 'Cierre de caja' in wau and 'Total cobrado: $' in wau and '5.000' in wau)
+        chk('Caja (inicio) tiene UN solo resumen',await pg.evaluate("()=>document.querySelectorAll('#page-vender .cierre-card').length")==1)
+        labs=await pg.evaluate("()=>[...document.querySelectorAll('.mob-item')].filter(e=>e.style.display!=='none').map(e=>e.innerText.trim())")
+        print('   menú:',labs)
+        chk('menú: Caja, Historial, Gastos, En cuenta',[l.split('\n')[-1].strip() for l in labs]==['Caja','Historial','Gastos','En cuenta'])
         chk('checklist: cierre marcado',await pg.evaluate("()=>JSON.parse(localStorage.getItem('pv_pasos_n1')||'{}').cierre===1"))
         chk('sin errores JS (cuenta nueva)',errs==[]); 
         if errs: print(errs)
