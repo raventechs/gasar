@@ -24,7 +24,7 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Tanda única de reglas Firestore para más adelante (pegar una sola vez por app):** modelo nuevo de prueba de 14 días (demoHasta) en PuntoVenta, SecuroPro, EmpresAR, Rodix, SaludAR y MiAgenda; medir visitas por vendedor; TimbreAR parte 2.
 
-**Sin prueba de 14 días real todavía:** TimbreAR, CompraZona, GasAR y manejAr (la landing los presenta sin prometer 14 días). Botón "Instructivo" dentro de la app: falta en CompraZona, GasAR y Rodix.
+**Prueba de 14 días SIN bloqueo (8/11/2026):** GasAR (admin 1.6.0, vendedor 1.4.0: por distribuidora, botones en Modo Raven), CompraZona (empresa v0.8, admin v0.6: por empresa), manejAr (v2.4.0: al vencer sigue funcionando) y TimbreAR (cartel en la app del residente; la consola guarda la prueba solo en el navegador hasta que los edificios pasen a la base). En las 4: durante la prueba, cartel ámbar con los días; al vencer, cartel rojo titilante fijo que no se puede cerrar, con botón de WhatsApp. Los clientes que ya existen no tienen fecha de prueba y no ven nada. No se pidieron reglas nuevas. Falta probarlas en el celular. Se reparó `timbrear-residente.html` (función de sonido cortada que impedía ejecutar la página). Botón "Instructivo" dentro de la app: falta en CompraZona, GasAR y Rodix.
 
 ## Actualización del 1/11/2026 (leer primero)
 
