@@ -1,4 +1,4 @@
-# RavenTechs — Traspaso para arrancar un chat nuevo (8/11/2026, 17:00)
+# RavenTechs — Traspaso para arrancar un chat nuevo (8/11/2026, 18:00)
 
 Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el mismo chat. Todo lo que está acá es continuación exacta del chat anterior; no hace falta buscar nada en chats viejos.
 
@@ -33,17 +33,17 @@ Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el
 | lavAR | lavar | lavar | menús admin con botones (SW v2.7) |
 | BarbeAR | barbear | barbear | v3.2 (botón Turno, agenda, adicionales) |
 | Reservas de BarbeAR | Chicho (carpeta `reservar-barbear/`) | https://ventas.raventechsapp.com/reservar-barbear/?neg=<uid> | corregida |
-| Sitio comercial / app de vendedores | Chicho | https://ventas.raventechsapp.com (vendedores, probar, folletos) | vendedores v1.9 |
+| Sitio comercial / app de vendedores | Chicho | https://ventas.raventechsapp.com (vendedores, probar, folletos) | vendedores v2.1 (visitas por vendedor + seguimiento día 1 y día 3; reglas en `vendedores/firestore.rules`) |
 | PeloteAR | PeloteAr | | checklist, SW v1.2 |
 | CarneAR | carneAr (producción), carnear-beta | | v2.9.3 |
 | SecuroPro | securepro | | v2.4 (plus) |
 | manejAr | ManejAr | | v2.5 (Flota + Análisis avanzado) |
-| CompraZona | comprazona | comprazona.raventechsapp.com | panel empresa con plus Ventas (SW v7); reglas v0.3 pendientes de pegar |
+| CompraZona | comprazona | comprazona.raventechsapp.com | panel empresa con plus Ventas (SW v7); reglas v0.3 ya publicadas |
 | GasAR | gasar (también guarda tablero y ESTADO) | raventechs.github.io/gasar/ | admin v1.7.0-plus |
 | TimbreAR | timbrear | timbrear.raventechsapp.com | prueba 14 días, instructivo |
 | PuntoVenta | puntoventa | | límites con botones (SW v2.4) |
 | MiAgenda | miagenda | | límite con botones, Recordatorios PLUS reparados (SW v2) |
-| SaludAR | saludar | | cupo y perfiles con botones (SW v3) |
+| SaludAR | saludar | saludar.raventechsapp.com | v2.10 (fecha en hora argentina, SW red primero, menú admin con sesión activa, selector de cuentas; Familiar probado) |
 | Rodix | vehigest-ar | | v1.9.4 |
 Otros repos: raventechs.github.io (portfolio, redirige a ventas), panel, mdtc (MTC), legalar, Garrafar, charlar, centralbotAr, ahorrar, raventechs-traductor-habitos, promptAr, admin y betas.
 Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.4). Estado del portfolio: `gasar/ESTADO-PORTFOLIO.md`. Auditorías y estándar: `gasar/qa/`.
@@ -64,15 +64,16 @@ Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.4). Estado del portfolio:
 - **Reservas de BarbeAR**: la página pública vive en otro dominio (ventas.raventechsapp.com) a propósito, porque en el mismo dominio la app instalada captura el link. Escribe `turnos` y `ocupados` sin login. La app muestra Turnos con lista y «Agenda por barbero» (calendario mensual, 🌐 web / ✍️ local, tocar un horario libre carga el turno), y un botón 📅 Turno en la caja.
 
 ## 5. Pendientes vigentes (en orden recomendado)
-1. **Ruben pega las reglas de CompraZona v0.3** (proyecto Firebase ravenmarket-c2739; archivo `firestore-rules.txt` del repo comprazona o `firestore-comprazona.rules.txt`). Evita que el dueño de una empresa se active el plus. Ya pegó las de PizzAR y PanAR.
-2. **EmpresAR**: sumar sus 2 plus. El repo no está en la organización; hace falta que Ruben diga dónde está o lo agregue.
-3. **Visitas por vendedor** (medir las visitas a la landing /probar/ por código de vendedor): hace falta que Ruben copie las reglas actuales del proyecto Firebase raventech-vendedores (no están en el repo) antes de modificarlas.
-4. **TimbreAR**: parte 2 (pasar los edificios de la consola admin, hoy en localStorage del navegador, a la base, con reglas; resolver que la cuenta Google de Ruben llega con token sin correo), luego sus 2 plus; parte 3: aviso push con la app cerrada en Xiaomi (probar con dos celulares). Proyecto aparte, con calma.
-5. Pilar 3 del embudo de demos: seguimiento humano.
-6. Paquete en pausa (solo si Ruben lo pide): CharlAR, Traductor de Hábitos y MTC (claves expuestas de Anthropic y Groq, Worker en Cloudflare, dominio habitos).
-7. Futuro: CarneAR con «máscaras» por rubro (carnicería, bazar, ropa).
-8. Cada vez que Ruben prueba en el celular y avisa fallas, corregir, probar, subir y avisar.
-Todo lo anterior a hoy ya lo probó Ruben OK en el celular, incluyendo la reserva de BarbeAR, las sucursales de PizzAR/PanAR y los menús admin con botones.
+1. **SaludAR: avisos con la app cerrada.** Ruben prueba unos días la v2.10 (avisos locales) y después se decide si se vuelve al aviso por servidor (Netlify + cron-job.org cada 15 min), que es el único confiable con la app cerrada. Recomendado: volver al servidor. Pedirle qué notó (llegan en hora, tarde, repetidos, resumen de las 22:00).
+2. **EmpresAR**: sumar sus 2 Plus. El repo no está en la organización; hace falta que Ruben diga dónde está (el catálogo apunta a garrafar.raventechsapp.com, repo Garrafar) o lo agregue.
+3. **TimbreAR**: parte 2 (pasar los edificios de la consola admin, hoy en localStorage del navegador, a la base, con reglas; resolver que la cuenta Google de Ruben llega con token sin correo), luego sus 2 plus; parte 3: aviso push con la app cerrada en Xiaomi (probar con dos celulares). Proyecto aparte, con calma.
+4. Paquete en pausa (solo si Ruben lo pide): CharlAR, Traductor de Hábitos y MTC (claves expuestas de Anthropic y Groq, Worker en Cloudflare, dominio habitos).
+5. Pedirle a Google que saque la marca de raventechs.github.io (manejAr, GasAR y LogisAR siguen ahí).
+6. Futuro: CarneAR con «máscaras» por rubro (carnicería, bazar, ropa); avisar al vendedor por push cuando le toca un seguimiento.
+7. Cada vez que Ruben prueba en el celular y avisa fallas, corregir, probar, subir y avisar.
+
+**Hecho el 8/11 por la tarde (probado por Ruben en el celular):** reglas CompraZona v0.3 publicadas; visitas por vendedor (landing `/probar/` v1.1 + panel Admin de vendedores v2.0); seguimiento humano día 1 y día 3 (vendedores v2.1, colección `seguimientos`); auditoría de SaludAR contra el estándar y versiones v2.8–v2.10; Familiar habilitado e invitación a un pariente en SaludAR.
+Observaciones de la auditoría de SaludAR: sigue con el modelo viejo de prueba (`status`/`demoExpiry`, decidido no migrar); `sw.js` del repo no se usa (solo `sw-saludar-notif.js`); el PIN quedó como markup sin uso. La fecha del día en SaludAR se toma ahora en hora de Argentina (`America/Argentina/Buenos_Aires`): no usar `toISOString()` para fechas del día en ninguna app.
 
 ## 6. Entorno de pruebas (en `raventechs/gasar`, carpeta `qa/harness/`)
 - `fake_firebase_tw.js`: simulador de Firebase para apps con SDK compat (para usar con Playwright; interceptar `**/www.gstatic.com/**` y entregar este archivo). Para algunas apps hay que agregar `enablePersistence` y `getRedirectResult` (ver cómo lo hacen los test_*.py).
