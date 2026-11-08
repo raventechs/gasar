@@ -27,6 +27,15 @@ async def main():
         t=await pg.evaluate("()=>document.getElementById('page-fiado').innerText")
         chk('Fiado muestra al de fiado y su saldo',('Cliente Fiado' in t and '2.500' in t))
         chk('Fiado NO mezcla al de cuotas',('Cliente Cuotas' not in t))
+        # libretita: nota con fecha y hora en la ficha
+        await pg.evaluate("()=>document.querySelector('[data-cc=cc1]').click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>document.getElementById('fd-b-nota').click()")
+        await pg.fill('#fd-n-txt','Paga el viernes'); await pg.evaluate("()=>document.getElementById('fd-n-ok').click()"); await pg.wait_for_timeout(1200)
+        nt=await pg.evaluate("()=>window.__DB.get('clientes/cc1').notas")
+        chk('nota guardada con fecha y hora',bool(nt) and nt[0]['t']=='Paga el viernes' and len(nt[0]['f'])==10 and ':' in nt[0]['h'])
+        chk('la ficha muestra la nota',await pg.evaluate("()=>document.getElementById('modal-fiado-body').innerText.includes('Paga el viernes')"))
+        chk('saldo intacto tras la nota',await pg.evaluate("()=>window.__DB.get('clientes/cc1').saldo")==2500)
+        await pg.evaluate("()=>document.getElementById('modal-fiado').classList.remove('open')")
         # dashboard: tarjeta Me deben
         await pg.evaluate("()=>document.querySelector('.mob-item[data-page=dashboard]').click()"); await pg.wait_for_timeout(500)
         chk('dashboard: Me deben $2.500',await pg.evaluate("()=>document.getElementById('page-dashboard').innerText.includes('2.500')"))

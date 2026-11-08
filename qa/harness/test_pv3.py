@@ -81,7 +81,7 @@ async def main():
         chk('cierre: efectivo $3.000',('3.000' in t))
         chk('cierre: transferencia $2.000',('2.000' in t))
         chk('cierre: total cobrado $5.000',('Total cobrado del día' in t and '5.000' in t))
-        chk('cierre: fiado del día $1.500',('Fiado del día' in t and '1.500' in t))
+        chk('cierre: fiado del día $1.500',('En cuenta del día' in t and '1.500' in t))
         chk('checklist: cierre marcado',await pg.evaluate("()=>JSON.parse(localStorage.getItem('pv_pasos_n1')||'{}').cierre===1"))
         chk('sin errores JS (cuenta nueva)',errs==[]); 
         if errs: print(errs)
