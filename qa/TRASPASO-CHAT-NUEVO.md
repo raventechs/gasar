@@ -33,7 +33,7 @@ Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el
 | lavAR | lavar | lavar | menús admin con botones (SW v2.7) |
 | BarbeAR | barbear | barbear | v3.2 (botón Turno, agenda, adicionales) |
 | Reservas de BarbeAR | Chicho (carpeta `reservar-barbear/`) | https://ventas.raventechsapp.com/reservar-barbear/?neg=<uid> | corregida |
-| Sitio comercial / app de vendedores | Chicho | https://ventas.raventechsapp.com (vendedores, probar, folletos) | vendedores v2.1 (visitas por vendedor + seguimiento día 1 y día 3; reglas en `vendedores/firestore.rules`) |
+| Sitio comercial / app de vendedores | Chicho | https://ventas.raventechsapp.com (vendedores, probar, folletos) | vendedores v2.2 (solapa «Uso de las apps» que abre el Panel de actividad; visitas por vendedor + seguimiento día 1 y día 3; reglas en `vendedores/firestore.rules`) |
 | PeloteAR | PeloteAr | | checklist, SW v1.2 |
 | CarneAR | carneAr (producción), carnear-beta | | v2.9.3 |
 | SecuroPro | securepro | | v2.4 (plus) |
@@ -64,6 +64,7 @@ Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.5). Estado del portfolio:
 - **Reservas de BarbeAR**: la página pública vive en otro dominio (ventas.raventechsapp.com) a propósito, porque en el mismo dominio la app instalada captura el link. Escribe `turnos` y `ocupados` sin login. La app muestra Turnos con lista y «Agenda por barbero» (calendario mensual, 🌐 web / ✍️ local, tocar un horario libre carga el turno), y un botón 📅 Turno en la caja.
 
 ## 5. Pendientes vigentes (en orden recomendado)
+0. **Panel de actividad:** se abre desde Admin → «Uso de las apps» (raventechs.github.io/panel/). Mudarlo a ventas.raventechsapp.com/panel/ es opcional y pide autorizar el dominio en Google.
 1. **SaludAR: avisos con la app cerrada.** Ruben prueba unos días la v2.10 (avisos locales) y después se decide si se vuelve al aviso por servidor (Netlify + cron-job.org cada 15 min), que es el único confiable con la app cerrada. Recomendado: volver al servidor. Pedirle qué notó (llegan en hora, tarde, repetidos, resumen de las 22:00).
 2. **EmpresAR**: sumar sus 2 Plus. El repo no está en la organización; hace falta que Ruben diga dónde está (el catálogo apunta a garrafar.raventechsapp.com, repo Garrafar) o lo agregue.
 3. **TimbreAR**: parte 2 (pasar los edificios de la consola admin, hoy en localStorage del navegador, a la base, con reglas; resolver que la cuenta Google de Ruben llega con token sin correo), luego sus 2 plus; parte 3: aviso push con la app cerrada en Xiaomi (probar con dos celulares). Proyecto aparte, con calma.
