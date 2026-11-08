@@ -1,3 +1,5 @@
+// Reglas Firestore de la app de vendedores (proyecto raventech-vendedores) — v2.1 (8/11/2026): vendedores, envios, visitas, seguimientos.
+// Publicar en Firebase Console → Firestore Database → Reglas → pegar TODO → Publicar. No borra ni modifica datos.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,7 +13,29 @@ service cloud.firestore {
     }
     match /envios/{id} {
       allow create: if esVendedor() && request.resource.data.vendedorEmail == mail();
+      allow read: if esAdmin() || (request.auth != null && resource.data.vendedorEmail == mail());
+      allow update, delete: if false;
+    }
+    // v2: visitas a la landing /probar/ (las registra cualquier visitante sin login, con campos validados; solo el admin las lee)
+    match /visitas/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['cod', 'appId', 'ts'])
+        && request.resource.data.cod is string && request.resource.data.cod.size() <= 24
+        && request.resource.data.appId is string && request.resource.data.appId.size() <= 20
+        && request.resource.data.ts is number
+        && request.resource.data.ts > request.time.toMillis() - 86400000
+        && request.resource.data.ts < request.time.toMillis() + 86400000;
       allow read: if esAdmin();
+      allow update, delete: if false;
+    }
+    // v2.1: seguimiento humano (cada vendedor marca sus tareas; el admin las lee todas)
+    match /seguimientos/{id} {
+      allow create: if (esVendedor() || esAdmin())
+        && request.resource.data.keys().hasOnly(['envioId', 'paso', 'estado', 'vendedorEmail', 'ts'])
+        && request.resource.data.vendedorEmail == mail()
+        && request.resource.data.paso in ['d1', 'd3', 'x']
+        && request.resource.data.estado in ['hecho', 'descartado']
+        && request.resource.data.envioId is string && request.resource.data.envioId.size() <= 40;
+      allow read: if esAdmin() || (request.auth != null && resource.data.vendedorEmail == mail());
       allow update, delete: if false;
     }
   }
