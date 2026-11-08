@@ -205,7 +205,7 @@ body.conPrueba{padding-bottom:76px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.5.1-instructivo';
+const VERSION='1.7.0-plus';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='';
 
@@ -682,7 +682,7 @@ function vLogin(){return `<div class="login card"><h1 class="logo" id="logo" sty
 <div style="height:14px"></div><button class="btn pri" style="width:100%" data-a="login">ENTRAR</button><div style="height:8px"></div><button class="btn" style="width:100%" data-a="google">Entrar con Google</button><p id="gerr" class="bad" style="font-size:14px;margin-top:10px"></p></div>`}
 function vRaven(){
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">Modo Raven</span><button class="ico" data-a="salir">Salir</button></div></header><main>
-  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.practica?'PRÁCTICA':(t.plan||''))}</span>${(e=>e?` <span class="tag" style="background:${e.vencida?'#c62828':'#f59e0b'};color:${e.vencida?'#fff':'#2b1a00'}">${e.vencida?'PRUEBA VENCIDA':'PRUEBA · '+e.dias+' d'}</span>`:'')(pruebaEstado(t))}</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${pruebaEstado(t)?`<button class="btn sm" data-a="activarDist" data-id="${t.id}">✅ Activar cliente</button><button class="btn sm" data-a="masDias" data-id="${t.id}">+7 días</button>`:''}<button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></span></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
+  <div class="card"><h2>Distribuidoras</h2>${S.tenants.length?S.tenants.map(t=>`<div class="row"><span><b>${esc(t.nombre)}</b> <span class="tag">${esc(t.practica?'PRÁCTICA':(t.plan||''))}</span>${(e=>e?` <span class="tag" style="background:${e.vencida?'#c62828':'#f59e0b'};color:${e.vencida?'#fff':'#2b1a00'}">${e.vencida?'PRUEBA VENCIDA':'PRUEBA · '+e.dias+' d'}</span>`:'')(pruebaEstado(t))}</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${pruebaEstado(t)?`<button class="btn sm" data-a="activarDist" data-id="${t.id}">✅ Activar cliente</button><button class="btn sm" data-a="masDias" data-id="${t.id}">+7 días</button>`:''}<button class="btn sm" data-a="plusRev" data-id="${t.id}">${t.plusRevendedores===true?'Quitar ⭐ Revendedores':'⭐ Revendedores'}</button><button class="btn sm" data-a="plusRep" data-id="${t.id}">${t.plusReparto===true?'Quitar ⭐ Reparto':'⭐ Reparto'}</button><button class="btn sm" data-a="entrar" data-id="${t.id}">Entrar</button></span></div>`).join(''):'<p class="mut">Todavía no hay distribuidoras.</p>'}</div>
   <div class="card"><h2>Crear distribuidora nueva</h2><div class="f">
   <div><label>Nombre de la distribuidora</label><input id="dn_n"></div><div><label>Nombre del dueño</label><input id="dn_a"></div>
   <div><label>Mail del dueño</label><input id="dn_e" type="email"></div><div><label>Clave inicial</label><input id="dn_p" type="password"></div></div>
@@ -690,12 +690,20 @@ function vRaven(){
   <div class="card"><h2>Modo Práctica</h2><p class="mut" style="font-size:15px">Crea una distribuidora de mentira ya armada, con precios, stock, camionetas, revendedores y usuarios de prueba, más una guía de 10 pasos para probar todo. Sirve para aprender y para mostrar el sistema.</p>
   <div style="height:10px"></div><button class="btn pri" data-a="crearPractica">CREAR DISTRIBUIDORA DE PRÁCTICA</button></div></main>`;
 }
+const PLUS_DESDE=Date.UTC(2026,10,9);
+const PLUS_TABS={revendedores:['plusRevendedores','Revendedores y cuentas corrientes','Vendé a kioscos y almacenes a cuenta, controlá plazos, límites de crédito y cuánto te debe cada uno.'],cargas:['plusReparto','Reparto en camionetas','Cargá cada camioneta, controlá lo que sale y lo que vuelve.'],rendiciones:['plusReparto','Reparto en camionetas','Rendición de cada chofer: lo vendido, lo cobrado y las diferencias.']};
+const _ms=x=>x?(x.toMillis?x.toMillis():+x):0;
+function plusDist(k){const t=S.tenant;if(S.raven||!t)return true;if(t[k]===true||t.practica)return true;const c=_ms(t.creadoTs);if(!c||c<PLUS_DESDE)return true;const e=pruebaEstado(t);return !!(e&&!e.vencida)}
+function plusPrueba(k){const t=S.tenant;return !!(t&&!S.raven&&t[k]!==true&&!t.practica&&_ms(t.creadoTs)>=PLUS_DESDE&&plusDist(k))}
+function vPlusLock(k){const [f,n,d]=PLUS_TABS[k],msg='Hola, quiero sumar «'+n+'» a mi GasAR ('+((S.tenant||{}).nombre||'')+').';
+  return head()+`<main><div class="card"><h2>⭐ Plus · ${n}</h2><p class="mut" style="font-size:15px">${d}</p><div style="height:10px"></div><a class="btn pri" target="_blank" rel="noopener" href="https://wa.me/${WA_RAVEN}?text=${encodeURIComponent(msg)}">Quiero este plus</a><p class="mut" style="font-size:13px;margin-top:10px">Tus datos anteriores no se pierden: al activarlo, vuelven a aparecer.</p></div></main>`}
+async function togglePlus(id,f){const t=S.tenants.find(x=>x.id===id)||{};try{await db.collection('tenants').doc(id).update({[f]:t[f]!==true});toast(t[f]!==true?'Plus activado':'Plus quitado')}catch(e){console.error(e);toast('No se pudo cambiar',true)}}
 const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios y backup']];
 function head(){
   const adm=S.perfil.rol==='administrador'||S.raven;
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">${esc((S.tenant||{}).nombre||'')} · ${esc(S.perfil.nombre)}${S.online?'':' · sin señal'}</span>
   <a class="ico" href="ayuda/" target="_blank" rel="noopener" aria-label="Instructivo" style="text-decoration:none;display:inline-flex;align-items:center">❓</a><button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button>${S.raven?'<button class="ico" data-a="salirT">Distribuidoras</button>':''}<button class="ico" data-a="salir">Salir</button></div>
-  <nav>${TABS.filter(([k])=>adm||k!=='usuarios').map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}</button>`).join('')}</nav></header>`;
+  <nav>${TABS.filter(([k])=>adm||k!=='usuarios').map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}${PLUS_TABS[k]&&plusPrueba(PLUS_TABS[k][0])?' ⭐':''}</button>`).join('')}</nav></header>`;
 }
 function stockMap(){
   const m={};S.saldos.forEach(s=>{(m[s.ubicacionId]=m[s.ubicacionId]||{});const k=s.productoId+'|'+s.marcaId;(m[s.ubicacionId][k]=m[s.ubicacionId][k]||{ll:0,va:0,p:s.productoId,m:s.marcaId});m[s.ubicacionId][k][s.tipo==='lleno'?'ll':'va']+=s.cantidad||0});return m;
@@ -1044,13 +1052,13 @@ function render(){
   if(!S.user||!S.perfil){r.innerHTML=vLogin();return}
   if(S.raven&&!S.tid){r.innerHTML=vRaven();return}
   const v={resumen:vResumen,stock:vStock,ventas:vVentas,cajas:vCajas,cargas:vCargas,rendiciones:vRendiciones,revendedores:vRevendedores,compras:vCompras,proveedores:vProveedores,gastos:vGastos,historial:vHistorial,ajustes:vAjustes,catalogo:vCatalogo,puntos:vPuntos,usuarios:vUsuarios}[S.tab]||vResumen;
-  const y=window.scrollY;let body=v();if(['ventas','stock','compras','gastos','revendedores','proveedores','historial'].includes(S.tab))body=body.replace(/<\/main>\s*$/,`<div style="margin-top:6px"><button class="btn sm" data-a="csv" data-v="${S.tab}">⬇ Exportar CSV</button></div></main>`);r.innerHTML=head()+body;window.scrollTo(0,y);
+  const y=window.scrollY;let body=(PLUS_TABS[S.tab]&&!plusDist(PLUS_TABS[S.tab][0]))?vPlusLock(S.tab):v();if(['ventas','stock','compras','gastos','revendedores','proveedores','historial'].includes(S.tab))body=body.replace(/<\/main>\s*$/,`<div style="margin-top:6px"><button class="btn sm" data-a="csv" data-v="${S.tab}">⬇ Exportar CSV</button></div></main>`);r.innerHTML=head()+body;window.scrollTo(0,y);
 }
 
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const D=el.dataset;
-  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),activarDist:()=>activarDist(D.id),masDias:()=>masDias(D.id),crearDist:crearDistribuidora,crearPractica,pasoTilde:()=>pasoTilde(+D.v),
+  const A={login,google:loginGoogle,salir:()=>auth.signOut(),salirT:salirTenant,entrar:()=>entrarTenant(D.id),activarDist:()=>activarDist(D.id),plusRev:()=>togglePlus(D.id,'plusRevendedores'),plusRep:()=>togglePlus(D.id,'plusReparto'),masDias:()=>masDias(D.id),crearDist:crearDistribuidora,crearPractica,pasoTilde:()=>pasoTilde(+D.v),
     tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
     tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
     anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,
