@@ -31,10 +31,10 @@ export const getDocs=async q=>mk(rows(q));
 export const setDoc=async(r,d,o)=>{const cur=DB.get(r.path)||{};const dm=(a,b)=>{const o={...a};for(const k in b){o[k]=(b[k]&&typeof b[k]==='object'&&!b[k].__ts&&!Array.isArray(b[k])&&a&&typeof a[k]==='object')?dm(a[k],b[k]):b[k]}return o};DB.set(r.path,o&&o.merge?dm(cur,ser(d)):ser(d))};
 export const addDoc=async(c,d)=>{const id='a'+Math.random().toString(36).slice(2,8);DB.set(c.path+'/'+id,ser(d));return{id,path:c.path+'/'+id}};
 export const updateDoc=async(r,d)=>{const cur=DB.get(r.path);if(cur===undefined)throw new Error('not-found');const n=JSON.parse(JSON.stringify(cur));
- for(const [k,v] of Object.entries(ser(d))){const p=k.split('.');let o=n;for(let i=0;i<p.length-1;i++){o[p[i]]=o[p[i]]||{};o=o[p[i]]}o[p[p.length-1]]=v}DB.set(r.path,n)};
+ for(const [k,v] of Object.entries(ser(d))){const p=k.split('.');let o=n;for(let i=0;i<p.length-1;i++){o[p[i]]=o[p[i]]||{};o=o[p[i]]}const last=p[p.length-1];o[last]=(v&&typeof v==='object'&&'__inc' in v)?((Number(o[last])||0)+v.__inc):v}DB.set(r.path,n)};
 export const deleteDoc=async r=>{DB.delete(r.path)};
 export const onSnapshot=(t,cb)=>{const f=()=>{if(t.col)cb(mk(rows(t)));else cb(snapOf(t.path))};setTimeout(f,0);return()=>{}};
-export const arrayUnion=(...v)=>v,arrayRemove=(...v)=>v,increment=n=>n;
+export const arrayUnion=(...v)=>v,arrayRemove=(...v)=>v,increment=n=>({__inc:n});
 export const writeBatch=()=>{const ops=[];return{set:(r,d,o)=>ops.push(()=>setDoc(r,d,o)),update:(r,d)=>ops.push(()=>updateDoc(r,d)),delete:r=>ops.push(()=>deleteDoc(r)),commit:async()=>{for(const f of ops)await f()}}};
 """
 import re

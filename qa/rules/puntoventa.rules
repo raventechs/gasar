@@ -2,6 +2,7 @@ rules_version = '2';
 // PuntoVenta — Reglas Firestore endurecidas (dueño + empleados con invitación).
 // Publicar en Firebase Console → proyecto de PuntoVenta → Firestore Database → Reglas → pegar TODO → Publicar.
 // Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
+// v3.0 (8/11/2026): protege 'plan' (Básica/Avanzada) y 'demoHasta' (prueba de 14 días nueva): el cliente no puede cambiarlos; al crear la cuenta solo puede ser plan 'basico' y una prueba de hasta 15 días.
 // Requiere la versión de la app con el registro de empleados reordenado (ya publicada en main).
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -40,6 +41,10 @@ service cloud.firestore {
               (request.resource.data.rol == 'owner'
                 && request.resource.data.get('banned', false) == false
                 && request.resource.data.get('status', 'demo') == 'demo'
+                && request.resource.data.get('plan', 'basico') == 'basico'
+                && (!('demoHasta' in request.resource.data)
+                    || (request.resource.data.demoHasta is timestamp
+                        && request.resource.data.demoHasta <= request.time + duration.value(15, 'd')))
                 && !('features' in request.resource.data) && !('isAdmin' in request.resource.data))
               // Empleado que se registra por invitación (queda pendiente hasta que el dueño lo apruebe)
               || (request.resource.data.rol == 'employee'
@@ -50,7 +55,7 @@ service cloud.firestore {
                 && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.resource.data.ownerUid)
            ));
       allow update: if esAdmin()
-        || (esDueno(uid) && !toca(['status','banned','demoExpiry','isAdmin','features','rol','estado','ownerUid','negocioId']))
+        || (esDueno(uid) && !toca(['status','banned','demoExpiry','demoHasta','plan','isAdmin','features','rol','estado','ownerUid','negocioId']))
         // El dueño aprueba / rechaza a sus empleados (solo el campo estado)
         || (logueado() && resource.data.get('ownerUid', '') == request.auth.uid && uid != request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
