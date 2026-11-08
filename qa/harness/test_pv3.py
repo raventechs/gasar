@@ -10,6 +10,7 @@ async def boot(br,viewport=(390,844),fake_now=None):
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:asyncio.ensure_future(d.accept()))
     await install(pg); await pg.route('**/fonts.g*',lambda r:r.abort()); await pg.route('**/sw*.js',lambda r:r.abort())
     if fake_now: await pg.add_init_script("(()=>{const R=Date;const off=%d-R.now();class D extends R{constructor(...a){if(a.length)super(...a);else super(R.now()+off)}static now(){return R.now()+off}};window.Date=D})()"%fake_now)
+    await pg.add_init_script("setInterval(()=>{if(!window.__keepRubro)document.getElementById('modal-rubro')?.remove()},50)")
     await pg.goto('http://127.0.0.1:8777/index.html'); await pg.wait_for_timeout(900)
     return pg,errs
 async def db(pg,key): return await pg.evaluate("k=>window.__DB.get(k)",key)

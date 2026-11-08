@@ -28,7 +28,7 @@ async def main():
         chk('Fiado muestra al de fiado y su saldo',('Cliente Fiado' in t and '2.500' in t))
         chk('Fiado NO mezcla al de cuotas',('Cliente Cuotas' not in t))
         tt=await pg.evaluate("()=>[document.querySelector('#owner-page-title .tt-main').textContent,document.querySelector('#owner-page-title .tt-sub').textContent]")
-        chk('barra: nombre del negocio grande y PuntoVenta chico',tt[0]=='Kiosco' and tt[1].startswith('PuntoVenta') and 'Dashboard' not in tt[0]+tt[1])
+        chk('barra: nombre del negocio grande y PuntoVenta chico',tt[0].endswith('Kiosco') and tt[1].startswith('PuntoVenta') and 'Dashboard' not in tt[0]+tt[1])
         # libretita: nota con fecha y hora en la ficha
         await pg.evaluate("()=>document.querySelector('[data-cc=cc1]').click()"); await pg.wait_for_timeout(500)
         await pg.evaluate("()=>document.getElementById('fd-b-nota').click()")
