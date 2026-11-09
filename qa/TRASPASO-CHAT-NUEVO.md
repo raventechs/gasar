@@ -1,4 +1,4 @@
-# RavenTechs — Traspaso para arrancar un chat nuevo (8/11/2026, 19:20)
+# RavenTechs — Traspaso para arrancar un chat nuevo (9/11/2026, 12:00)
 
 Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el mismo chat. Todo lo que está acá es continuación exacta del chat anterior; no hace falta buscar nada en chats viejos.
 
@@ -43,10 +43,10 @@ Pegá este archivo (o pedile al chat nuevo que lo lea) y seguí como si fuera el
 | TimbreAR | timbrear | timbrear.raventechsapp.com | prueba 14 días, instructivo |
 | PuntoVenta | puntoventa | puntoventa.raventechsapp.com | v3.8 (SW v3.8): plan Básica/Avanzada, Caja como inicio (sin departamentos en Básico), Historial con buscador, En cuenta con notas, rubros, cierre por WhatsApp (dueño y empleado), tablero del dueño en Avanzada; reglas nuevas por pegar |
 | MiAgenda | miagenda | | límite con botones, Recordatorios PLUS reparados (SW v2) |
-| SaludAR | saludar | saludar.raventechsapp.com | v2.10 (fecha en hora argentina, SW red primero, menú admin con sesión activa, selector de cuentas; Familiar probado) |
+| SaludAR | saludar | saludar.raventechsapp.com | v2.11 (el familiar invitado abre el perfil del titular y hereda su estado; fecha en hora argentina, SW red primero, menú admin, selector de cuentas; Familiar v2.11 por probar) |
 | Rodix | vehigest-ar | | v1.9.4 |
 Otros repos: raventechs.github.io (portfolio, redirige a ventas), panel, mdtc (MTC), legalar, Garrafar, charlar, centralbotAr, ahorrar, raventechs-traductor-habitos, promptAr, admin y betas.
-Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.7). Estado del portfolio: `gasar/ESTADO-PORTFOLIO.md`. Auditorías y estándar: `gasar/qa/`.
+Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.10). Estado del portfolio: `gasar/ESTADO-PORTFOLIO.md`. Auditorías y estándar: `gasar/qa/`.
 
 ## 4. Modelos y reglas comerciales ya definidos (no reinventar)
 - **Prueba de 14 días**: campo `demoHasta`. Ausente = cliente existente (no ve nada); null = activado. En las apps con el modelo nuevo (CarneAR, PizzAR, PanAR, lavAR, BarbeAR, PeloteAR, GasAR, CompraZona, manejAr, TimbreAR y PuntoVenta v3.x para cuentas nuevas) la prueba NO bloquea: al vencer aparece un cartel rojo titilante fijo que no se cierra. SecuroPro, Rodix, SaludAR, MiAgenda y EmpresAR usan el modelo viejo (status/demoExpiry) y Ruben decidió no migrarlos. WhatsApp de activación: 5491136547592.
@@ -64,7 +64,7 @@ Tablero maestro: `gasar/raventechs-tablero.html` (v2.9.7). Estado del portfolio:
 - **Reservas de BarbeAR**: la página pública vive en otro dominio (ventas.raventechsapp.com) a propósito, porque en el mismo dominio la app instalada captura el link. Escribe `turnos` y `ocupados` sin login. La app muestra Turnos con lista y «Agenda por barbero» (calendario mensual, 🌐 web / ✍️ local, tocar un horario libre carga el turno), y un botón 📅 Turno en la caja.
 
 ## 5. Pendientes vigentes (en orden recomendado)
-0. **PuntoVenta (v3.8):** probando en el celular; v3.3–v3.5 (barra con nombre, rubros, Caja inicio, Historial con buscador, un solo resumen), v3.6 (Básico sin departamentos), v3.7 (tablero del dueño con gráficos y ficha por sucursal), v3.8 (cierre del empleado por WhatsApp; el resumen nocturno automático se descartó). SaludAR v2.11: el familiar invitado hereda el estado del titular y abre su perfil. Ruben pega las reglas completas (`qa/rules/puntoventa.rules`, ya se las pasé como texto en el chat) y prueba v3.2 en el celular con una cuenta nueva. Etapa 2: catálogo de productos opcional (venta con ticket), alertas de stock y 2 adicionales Plus. Opcional: interruptor para apagar «En cuenta» como adicional. Decisiones de Ruben: una sola app con modo Básico (cuentas nuevas) y Avanzada (botón admin); venta rápida + productos opcionales; cuenta corriente además de cuotas; palabra «En cuenta» en vez de «fiado»; el cierre de caja va dentro de Caja con envío por WhatsApp (queremos esto en el estándar).
+0. **PuntoVenta (v3.8):** probando en el celular; v3.3–v3.5 (barra con nombre, rubros, Caja inicio, Historial con buscador, un solo resumen), v3.6 (Básico sin departamentos), v3.7 (tablero del dueño con gráficos y ficha por sucursal), v3.8 (cierre del empleado por WhatsApp; el resumen nocturno automático se descartó). SaludAR v2.11: el familiar invitado hereda el estado del titular y abre su perfil. Ruben pega las reglas completas (`qa/rules/puntoventa.rules`, ya se las pasé como texto en el chat) y prueba v3.8 en el celular con una cuenta nueva (Avanzada se activa desde el menú admin para ver el tablero del dueño). Etapa 2: catálogo de productos opcional (venta con ticket), alertas de stock y 2 adicionales Plus. Opcional: interruptor para apagar «En cuenta» como adicional. Decisiones de Ruben: una sola app con modo Básico (cuentas nuevas) y Avanzada (botón admin); venta rápida + productos opcionales; cuenta corriente además de cuotas; palabra «En cuenta» en vez de «fiado»; el cierre de caja va dentro de Caja con envío por WhatsApp (queremos esto en el estándar).
 0b. **Panel de actividad:** se abre desde Admin → «Uso de las apps» (raventechs.github.io/panel/). Mudarlo a ventas.raventechsapp.com/panel/ es opcional y pide autorizar el dominio en Google.
 1. **SaludAR: avisos con la app cerrada.** Ruben prueba unos días la v2.10 (avisos locales) y después se decide si se vuelve al aviso por servidor (Netlify + cron-job.org cada 15 min), que es el único confiable con la app cerrada. Recomendado: volver al servidor. Pedirle qué notó (llegan en hora, tarde, repetidos, resumen de las 22:00).
 2. **EmpresAR**: sumar sus 2 Plus. El repo no está en la organización; hace falta que Ruben diga dónde está (el catálogo apunta a garrafar.raventechsapp.com, repo Garrafar) o lo agregue.
@@ -88,7 +88,7 @@ Observaciones de la auditoría de SaludAR: sigue con el modelo viejo de prueba (
 ## 6b. Reglas Firestore (archivos completos para pegar)
 - PizzAR y PanAR (idénticas): `pizzar/firestore.rules` y `panar/firestore.rules`. Ya publicadas por Ruben.
 - CompraZona v0.3: ya publicadas por Ruben (8/11).
-- PuntoVenta v3.2: `gasar/qa/rules/puntoventa.rules` (también en el repo puntoventa). POR PEGAR por Ruben (protege `plan` y `demoHasta`).
+- PuntoVenta v3.8 (reglas sin cambios desde v3.2): `gasar/qa/rules/puntoventa.rules` (también en el repo puntoventa). POR PEGAR por Ruben (protege `plan` y `demoHasta`).
 - Vendedores v2.1 (proyecto raventech-vendedores: vendedores, envios, visitas, seguimientos): `Chicho/vendedores/firestore.rules` y `gasar/qa/rules/vendedores.rules`. Ya publicadas por Ruben (8/11).
 - Cada app tiene sus reglas en su repo (`firestore.rules`, `firestore.rules.txt` o `firestore-rules.txt`). Ruben solo pega el archivo completo.
 
