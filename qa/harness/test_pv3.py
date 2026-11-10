@@ -98,10 +98,10 @@ async def main():
 
         # ---------- 2) CUENTA ANTERIOR (sin plan) => todo como antes
         pg,errs=await boot(br)
-        await pg.evaluate("()=>{window.__DB.set('usuarios/v1',{uid:'v1',email:'viejo@gmail.com',rol:'owner',modo:'multi',status:'activo',banned:false});window.__DB.set('negocios/nv',{nombre:'Kiosco Viejo',ownerUid:'v1',tipo:'Kiosco',icon:'🏪'});window.__DB.set('ventas/old1',{negocioId:'nv',ownerUid:'v1',empleadoUid:'v1',empleadoNombre:'viejo',importe:2500,medio:'mp',descripcion:'Venta vieja',fecha:'%s',hora:'10:00',createdAt:{__ts:%d}})}"%(__import__('datetime').datetime.now().strftime('%Y-%m-%d'),int(time.time()*1000)))
+        await pg.evaluate("()=>{window.__DB.set('usuarios/v1',{uid:'v1',email:'viejo@gmail.com',rol:'owner',modo:'multi',status:'activo',banned:false});window.__DB.set('negocios/nv',{nombre:'Kiosco Viejo',ownerUid:'v1',tipo:'Kiosco',icon:'🏪'});window.__DB.set('ventas/old1',{negocioId:'nv',ownerUid:'v1',empleadoUid:'v1',empleadoNombre:'viejo',importe:2500,medio:'mp',descripcion:'Venta vieja',fecha:'%s',hora:'10:00',createdAt:{__ts:%d}})}"%(__import__('datetime').datetime.now(__import__('zoneinfo').ZoneInfo('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d'),int(time.time()*1000)))
         await pg.evaluate("()=>window.__login({uid:'v1',email:'viejo@gmail.com',emailVerified:true})"); await pg.wait_for_timeout(2500)
         vis=await pg.evaluate("()=>[...document.querySelectorAll('.mob-item')].filter(e=>e.style.display!=='none').map(e=>e.dataset.page)")
-        chk('cuenta vieja conserva dashboard y empleados, sin vender',set(vis)=={'dashboard','ventas','empleados','gastos','fiado'})
+        chk('cuenta vieja conserva dashboard y empleados, sin vender',set(vis)=={'dashboard','ventas','empleados','gastos','fiado','productos'})
         chk('cuenta vieja arranca en dashboard',await pg.evaluate("()=>document.getElementById('page-dashboard').style.display!='none'"))
         chk('cuenta vieja: dato viejo cuenta (MP $2.500)',await pg.evaluate("()=>document.getElementById('page-dashboard').innerText.includes('2.500')"))
         chk('cuenta vieja sin banner',await pg.evaluate("()=>!document.getElementById('demo-banner')"))
