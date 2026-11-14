@@ -6,6 +6,16 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Fuentes:** tablero maestro (`raventechs-tablero.html`, v2.4.0, ahora con una línea de backup por app), portal (`raventechs.github.io`), código de cada repo y lo que Ruben confirmó de palabra. Las tildes que se marcan tocando el tablero se guardan solo en el celular, así que este archivo es la referencia compartida.
 
+## Actualización del 14/11/2026 (leer primero)
+
+**Hecho:**
+- **Estándar «sucursales en versión simple + Plus Panel del dueño»** aplicado y publicado en PuntoVenta (v3.11/3.12), CarneAR v2.10, PizzAR, PanAR, BarbeAR v3.3 y lavAR v2.5. Negocio único = caja base sin panel; 2+ locales = selector de local y pestaña «Dueño» (candado + WhatsApp sin el Plus; total del día y detalle por local con el Plus, que activa el admin con «⭐ Activar Panel dueño»). Probado solo en simulado.
+- **Reglas pegadas por Ruben el 14/11:** lavAR (obligatoria, protege `panelDueno`) y PizzAR/PanAR (recomendadas). CarneAR, BarbeAR y PuntoVenta no cambian.
+- **Panel de actividad** con uso real por app (ver resumen del tablero 2.9.14); faltan EmpresAR y CompraZona.
+- Estándar de entrega: instructivo único para pegar reglas (página con enlace directo + botón Copiar).
+
+**Pendientes en orden:** 1) probar el Plus con una cuenta real en cada app; 2) dos animaciones de venta (Básica con sucursales y Completa); 3) panel de actividad de EmpresAR y CompraZona; 4) lista del 8/11.
+
 ## Actualización del 8/11/2026 (noche — leer primero)
 
 **Hecho (todo probado e/o instalado por Ruben en el celular salvo lo marcado):**

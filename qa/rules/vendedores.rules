@@ -1,4 +1,4 @@
-// Reglas Firestore de la app de vendedores (proyecto raventech-vendedores) — v2.1 (8/11/2026): vendedores, envios, visitas, seguimientos.
+// Reglas Firestore de la app de vendedores (proyecto raventech-vendedores) — v2.2 (9/11/2026): vendedores, envios, visitas, seguimientos y altas (cobranza y comisiones).
 // Publicar en Firebase Console → Firestore Database → Reglas → pegar TODO → Publicar. No borra ni modifica datos.
 rules_version = '2';
 service cloud.firestore {
@@ -37,6 +37,11 @@ service cloud.firestore {
         && request.resource.data.envioId is string && request.resource.data.envioId.size() <= 40;
       allow read: if esAdmin() || (request.auth != null && resource.data.vendedorEmail == mail());
       allow update, delete: if false;
+    }
+    // v2.2: altas cobradas y comisiones (solo el administrador las crea, las marca como liquidadas o las deshace; cada vendedor lee solo las suyas)
+    match /altas/{id} {
+      allow read: if esAdmin() || (request.auth != null && resource.data.vendedorEmail == mail());
+      allow create, update, delete: if esAdmin();
     }
   }
 }
