@@ -3,6 +3,7 @@
   Versión: 1.6.0-prueba
   Fecha: 2026-11-08
   Changelog:
+   - 1.8.0-arranque: pestaña «Puesta en marcha» (solo modo Raven, dentro de una distribuidora): carga de una vez puntos de venta y personas (mail, nombre, sección, punto) con clave inicial propia y lista para copiar. Solo crea; no borra ni cambia lo existente.
    - 1.7.1: el aviso de conexión lenta ahora indica reintentar o entrar por la página de inicio de GasAR (portal con 4 botones). Solo cambia un texto.
    - 1.6.0-prueba: PRUEBA DE 14 DÍAS SIN BLOQUEO. Las distribuidoras nuevas nacen con demoHasta (14 días). Mientras dura, cartel ámbar con los días; al vencer, cartel rojo titilante fijo que no se puede cerrar, con botón para activar por WhatsApp. La app sigue funcionando. En Modo Raven: etiqueta de prueba y botones «Activar cliente» y «+7 días». Las distribuidoras que ya existen no tienen demoHasta: no ven nada. No toca datos ni reglas.
    - 1.5.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
@@ -206,7 +207,7 @@ body.conPrueba{padding-bottom:76px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const VERSION='1.7.0-plus';
+const VERSION='1.8.0-arranque';
 const FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
 const RAVEN_EMAIL='rgaraventa@gmail.com',ADMIN_PIN='';
 
@@ -699,12 +700,12 @@ function plusPrueba(k){const t=S.tenant;return !!(t&&!S.raven&&t[k]!==true&&!t.p
 function vPlusLock(k){const [f,n,d]=PLUS_TABS[k],msg='Hola, quiero sumar «'+n+'» a mi GasAR ('+((S.tenant||{}).nombre||'')+').';
   return head()+`<main><div class="card"><h2>⭐ Plus · ${n}</h2><p class="mut" style="font-size:15px">${d}</p><div style="height:10px"></div><a class="btn pri" target="_blank" rel="noopener" href="https://wa.me/${WA_RAVEN}?text=${encodeURIComponent(msg)}">Quiero este plus</a><p class="mut" style="font-size:13px;margin-top:10px">Tus datos anteriores no se pierden: al activarlo, vuelven a aparecer.</p></div></main>`}
 async function togglePlus(id,f){const t=S.tenants.find(x=>x.id===id)||{};try{await db.collection('tenants').doc(id).update({[f]:t[f]!==true});toast(t[f]!==true?'Plus activado':'Plus quitado')}catch(e){console.error(e);toast('No se pudo cambiar',true)}}
-const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios y backup']];
+const TABS=[['resumen','Resumen'],['stock','Stock'],['ventas','Ventas'],['cajas','Cajas'],['cargas','Cargas'],['rendiciones','Rendiciones'],['revendedores','Revendedores'],['compras','Compras'],['proveedores','Proveedores'],['gastos','Gastos'],['historial','Historial'],['ajustes','Ajustar stock'],['catalogo','Productos y marcas'],['puntos','Puntos de venta'],['usuarios','Usuarios y backup'],['arranque','Puesta en marcha']];
 function head(){
   const adm=S.perfil.rol==='administrador'||S.raven;
   return `<header><div class="top"><span class="logo" id="logo">GasAR</span><span class="who">${esc((S.tenant||{}).nombre||'')} · ${esc(S.perfil.nombre)}${S.online?'':' · sin señal'}</span>
   <a class="ico" href="ayuda/" target="_blank" rel="noopener" aria-label="Instructivo" style="text-decoration:none;display:inline-flex;align-items:center">❓</a><button class="ico" data-a="tema" aria-label="Cambiar tema">◐</button>${S.raven?'<button class="ico" data-a="salirT">Distribuidoras</button>':''}<button class="ico" data-a="salir">Salir</button></div>
-  <nav>${TABS.filter(([k])=>adm||k!=='usuarios').map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}${PLUS_TABS[k]&&plusPrueba(PLUS_TABS[k][0])?' ⭐':''}</button>`).join('')}</nav></header>`;
+  <nav>${TABS.filter(([k])=>k==='arranque'?S.raven:(adm||k!=='usuarios')).map(([k,n])=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}">${n}${PLUS_TABS[k]&&plusPrueba(PLUS_TABS[k][0])?' ⭐':''}</button>`).join('')}</nav></header>`;
 }
 function stockMap(){
   const m={};S.saldos.forEach(s=>{(m[s.ubicacionId]=m[s.ubicacionId]||{});const k=s.productoId+'|'+s.marcaId;(m[s.ubicacionId][k]=m[s.ubicacionId][k]||{ll:0,va:0,p:s.productoId,m:s.marcaId});m[s.ubicacionId][k][s.tipo==='lleno'?'ll':'va']+=s.cantidad||0});return m;
@@ -808,6 +809,90 @@ function vPuntos(){
   return `<main><div class="card"><h2>Puntos de venta</h2>${S.ubis.map(u=>`<div class="row"><span><b>${esc(u.nombre)}</b> <span class="tag">${TIPOS[u.tipo]||''}</span> ${u.activa===false?'<span class="tag bad">inactivo</span>':''}</span><button class="btn sm" data-a="tubi" data-id="${u.id}" data-v="${u.activa===false?1:0}">${u.activa===false?'Activar':'Desactivar'}</button></div>`).join('')}
   <div style="height:12px"></div><div class="f"><div><label>Nombre</label><input id="nu_n" placeholder="Camioneta 1"></div><div><label>Tipo</label><select id="nu_t"><option value="camioneta">Camioneta</option><option value="revendedores">Revendedores</option><option value="central">Central</option></select></div><div><button class="btn pri" data-a="nubi">AGREGAR PUNTO</button></div></div></div></main>`;
 }
+
+// ══════════ PUESTA EN MARCHA (1.8.0) · solo modo Raven ══════════
+// Servicio "llave en mano": Raven carga de una vez los puntos de venta y las personas (mail, nombre, rol, punto).
+// Cada persona recibe una clave inicial propia. NO borra ni modifica nada existente: solo crea puntos y usuarios nuevos.
+const AR_ROL_TIPO={vendedor_camioneta:'camioneta',vendedor_revendedores:'revendedores',vendedor_central:'central'};
+const AR_TIPOS=[['camioneta','Camioneta (Reparto)'],['revendedores','Revendedores (Distribución)'],['central','Central (Venta mostrador)']];
+function arNuevo(){return{pun:[{n:'',t:'camioneta'}],usu:[{e:'',n:'',r:'vendedor_camioneta',p:''}],res:null,ocu:false}}
+function arClave(){const c='abcdefghjkmnpqrstuvwxyz23456789',a=new Uint32Array(8);if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<8;i++)a[i]=Math.floor(Math.random()*1e9);let s='';for(let i=0;i<8;i++)s+=c[a[i]%c.length];return s}
+function arNombresPuntos(){const pm=S.pm;return [...new Set([...S.ubis.filter(u=>u.activa!==false).map(u=>u.nombre),...pm.pun.map(x=>x.n.trim()).filter(Boolean)])]}
+function arOpts(sel){return '<option value="">— elegí el punto —</option>'+arNombresPuntos().map(n=>`<option value="${esc(n)}"${n===sel?' selected':''}>${esc(n)}</option>`).join('')}
+function arRefrescar(){document.querySelectorAll('select[data-pm="usu"][data-k="p"]').forEach(el=>{const i=+el.dataset.i;el.innerHTML=arOpts(S.pm.usu[i]?S.pm.usu[i].p:'')})}
+function vArranque(){
+  if(!S.raven)return vResumen();
+  const pm=S.pm||(S.pm=arNuevo());
+  if(pm.res){
+    const ok=pm.res.res.filter(r=>r.ok),mal=pm.res.res.filter(r=>!r.ok);
+    return `<main><div class="card"><h2>✅ Listo</h2>
+    <p class="mut">${pm.res.puns.length?'Puntos creados: '+pm.res.puns.map(x=>esc(x.n)).join(', ')+'. ':''}Usuarios creados: ${ok.length}${mal.length?' · con problema: '+mal.length:''}.</p>
+    ${ok.map(r=>`<div class="row"><span><b>${esc(r.n)}</b> <span class="tag">${esc(ROLES[r.r]||r.r)}</span>${r.p?' <span class="tag">'+esc(r.p)+'</span>':''}<br><span class="mut">${esc(r.e)} · clave: <b>${esc(r.clave)}</b></span></span></div>`).join('')}
+    ${mal.map(r=>`<div class="row"><span><b>${esc(r.n)}</b> <span class="tag bad">no se creó</span><br><span class="mut">${esc(r.e)} · ${esc(r.err)}</span></span></div>`).join('')}
+    <div style="height:12px"></div><button class="btn pri" data-a="arc">COPIAR LISTA PARA ENVIAR</button><div style="height:8px"></div><button class="btn" data-a="arn">HACER OTRA CARGA</button>
+    <p class="mut">Cada persona entra con su mail y su clave desde la página de inicio de GasAR y toca su botón. Guardá esta lista: las claves no se vuelven a mostrar.</p></div></main>`;
+  }
+  const exist=S.ubis.filter(u=>u.activa!==false);
+  return `<main><div class="card"><h2>🚀 Puesta en marcha</h2>
+  <p class="mut">Cargá de una vez los puntos de venta y las personas de ${esc((S.tenant||{}).nombre||'la distribuidora')}. Cada persona recibe una clave propia. No borra ni cambia nada de lo que ya existe.</p>
+  <h3 style="margin-top:14px">1. Puntos de venta</h3>
+  ${exist.length?`<p class="mut">Ya existen: ${exist.map(u=>esc(u.nombre)+' ('+(TIPOS[u.tipo]||'')+')').join(' · ')}</p>`:'<p class="mut">Todavía no hay puntos.</p>'}
+  ${pm.pun.map((x,i)=>`<div class="f" style="margin-top:8px"><div><label>Nombre del punto nuevo</label><input data-pm="pun" data-i="${i}" data-k="n" value="${esc(x.n)}" placeholder="Camioneta 1"></div><div><label>Tipo</label><select data-pm="pun" data-i="${i}" data-k="t">${AR_TIPOS.map(([k,n])=>`<option value="${k}"${x.t===k?' selected':''}>${n}</option>`).join('')}</select></div><div><button class="btn sm" data-a="arq" data-g="pun" data-i="${i}">Quitar</button></div></div>`).join('')}
+  <div style="height:8px"></div><button class="btn sm" data-a="arp">+ OTRO PUNTO</button>
+  <h3 style="margin-top:18px">2. Personas</h3>
+  ${pm.usu.map((x,i)=>`<div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px">
+    <div class="f"><div><label>Mail</label><input type="email" data-pm="usu" data-i="${i}" data-k="e" value="${esc(x.e)}" placeholder="empleado@gmail.com" autocapitalize="off"></div><div><label>Nombre</label><input data-pm="usu" data-i="${i}" data-k="n" value="${esc(x.n)}" placeholder="Juan Pérez"></div></div>
+    <div class="f"><div><label>Sección</label><select data-pm="usu" data-i="${i}" data-k="r">${Object.entries(ROLES).map(([k,n])=>`<option value="${k}"${x.r===k?' selected':''}>${n}</option>`).join('')}</select></div>
+    <div id="arp_${i}" style="${AR_ROL_TIPO[x.r]?'':'display:none'}"><label>Punto de venta</label><select data-pm="usu" data-i="${i}" data-k="p">${arOpts(x.p)}</select></div></div>
+    <div style="margin-top:8px"><button class="btn sm" data-a="arq" data-g="usu" data-i="${i}">Quitar persona</button></div></div>`).join('')}
+  <div style="height:8px"></div><button class="btn sm" data-a="aru">+ OTRA PERSONA</button>
+  <div style="height:16px"></div><button class="btn pri" data-a="arx"${pm.ocu?' disabled':''}>${pm.ocu?'CREANDO…':'CREAR TODO'}</button>
+  <p class="mut">Sección: Reparto = vendedor camioneta · Distribución = vendedor revendedores · Venta mostrador = vendedor central · Administración = administrador/administración.</p></div></main>`;
+}
+async function arEjecutar(){
+  const pm=S.pm;if(!pm||pm.ocu)return;
+  const puns=pm.pun.filter(x=>x.n.trim()).map(x=>({n:x.n.trim(),t:x.t}));
+  const usus=pm.usu.filter(x=>x.e.trim()||x.n.trim()).map(x=>({e:x.e.trim().toLowerCase(),n:x.n.trim(),r:x.r,p:x.p}));
+  if(!puns.length&&!usus.length)return toast('Completá al menos un punto o una persona',true);
+  const exist=S.ubis.map(u=>u.nombre.toLowerCase()),vistos=new Set();
+  for(const x of puns){const k=x.n.toLowerCase();if(exist.includes(k)||vistos.has(k))return toast('El punto "'+x.n+'" está repetido',true);vistos.add(k)}
+  if(puns.filter(x=>x.t==='central').length+(central()?1:0)>1)return toast('Ya hay un punto central: no se puede crear otro',true);
+  const mails=new Set(),todos=[...exist,...vistos];
+  for(const x of usus){
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.e))return toast('Revisá el mail de "'+(x.n||x.e||'una fila')+'"',true);
+    if(!x.n)return toast('Falta el nombre de '+x.e,true);
+    if(mails.has(x.e))return toast('El mail '+x.e+' está repetido',true);mails.add(x.e);
+    if(AR_ROL_TIPO[x.r]){if(!x.p)return toast('Elegí el punto de '+x.n,true);if(!todos.includes(x.p.toLowerCase()))return toast('El punto de '+x.n+' no existe',true)}
+  }
+  pm.ocu=true;render();
+  const ids={};S.ubis.forEach(u=>ids[u.nombre.toLowerCase()]=u.id);
+  try{
+    if(puns.length){const b=db.batch();puns.forEach(x=>{const id=nid();ids[x.n.toLowerCase()]=id;b.set(T().collection('ubicaciones').doc(id),{nombre:x.n,tipo:x.t,activa:true,creadaTs:TS.now()})});audit(b,'puesta_en_marcha',puns.length+' puntos: '+puns.map(x=>x.n).join(', '));await b.commit()}
+  }catch(e){console.error(e);pm.ocu=false;render();return toast('No se pudieron crear los puntos ('+(e.code||'error')+')',true)}
+  const res=[];
+  for(const x of usus){
+    const clave=arClave();
+    try{await crearUsuarioAuth(x.e,clave,{tenantId:S.tid,nombre:x.n,rol:x.r,ubicacionId:AR_ROL_TIPO[x.r]?ids[x.p.toLowerCase()]:null});res.push({...x,clave,ok:true})}
+    catch(e){res.push({...x,ok:false,err:e.code==='auth/email-already-in-use'?'Ese mail ya está registrado':'No se pudo crear ('+(e.code||'error')+')'})}
+  }
+  if(res.some(r=>r.ok)){const b2=db.batch();audit(b2,'puesta_en_marcha',res.filter(r=>r.ok).length+' usuarios');await b2.commit().catch(()=>{})}
+  pm.res={puns,res};pm.ocu=false;render();
+}
+function arCopiar(){
+  const r=S.pm&&S.pm.res;if(!r)return;
+  const url=location.href.replace(/gasar-admin\.html.*$/,'');
+  const t='GasAR · '+((S.tenant||{}).nombre||'')+'\nIngresá desde '+url+' y tocá tu sección (Administración, Reparto, Distribución o Venta mostrador).\n\n'+r.res.filter(x=>x.ok).map(x=>'• '+x.n+' ('+(ROLES[x.r]||x.r)+(x.p?' · '+x.p:'')+')\n  Mail: '+x.e+'\n  Clave: '+x.clave).join('\n\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast('Lista copiada'),()=>toast('No se pudo copiar',true));else toast('No se pudo copiar',true);
+}
+function arCampo(e){
+  const el=e.target;if(!el||!el.dataset||!el.dataset.pm||!S.pm)return;
+  const fila=S.pm[el.dataset.pm][+el.dataset.i];if(!fila)return;
+  fila[el.dataset.k]=el.value;
+  if(el.dataset.pm==='pun'&&el.dataset.k==='n')arRefrescar();
+  if(el.dataset.pm==='usu'&&el.dataset.k==='r'){const d=document.getElementById('arp_'+el.dataset.i);if(d)d.style.display=AR_ROL_TIPO[el.value]?'':'none'}
+}
+document.addEventListener('input',arCampo);document.addEventListener('change',arCampo);
+
 // ══════════ BACKUP ESTÁNDAR 1.5.0 ══════════
 // Automático: una vez por día al entrar el administrador de la distribuidora. Baja el archivo JSON y deja una copia en IndexedDB (últimas 7).
 // Manual y restaurar: pestaña "Usuarios y backup". Incluye TODAS las colecciones de la distribuidora (ventas, cajas, cuentas corrientes, stock, auditoría...).
@@ -1052,7 +1137,7 @@ function render(){
   const a=document.activeElement;if(a&&['INPUT','SELECT'].includes(a.tagName)&&r.contains(a))return; // no pisar lo que se está escribiendo
   if(!S.user||!S.perfil){r.innerHTML=vLogin();return}
   if(S.raven&&!S.tid){r.innerHTML=vRaven();return}
-  const v={resumen:vResumen,stock:vStock,ventas:vVentas,cajas:vCajas,cargas:vCargas,rendiciones:vRendiciones,revendedores:vRevendedores,compras:vCompras,proveedores:vProveedores,gastos:vGastos,historial:vHistorial,ajustes:vAjustes,catalogo:vCatalogo,puntos:vPuntos,usuarios:vUsuarios}[S.tab]||vResumen;
+  const v={resumen:vResumen,stock:vStock,ventas:vVentas,cajas:vCajas,cargas:vCargas,rendiciones:vRendiciones,revendedores:vRevendedores,compras:vCompras,proveedores:vProveedores,gastos:vGastos,historial:vHistorial,ajustes:vAjustes,catalogo:vCatalogo,puntos:vPuntos,usuarios:vUsuarios,arranque:vArranque}[S.tab]||vResumen;
   const y=window.scrollY;let body=(PLUS_TABS[S.tab]&&!plusDist(PLUS_TABS[S.tab][0]))?vPlusLock(S.tab):v();if(['ventas','stock','compras','gastos','revendedores','proveedores','historial'].includes(S.tab))body=body.replace(/<\/main>\s*$/,`<div style="margin-top:6px"><button class="btn sm" data-a="csv" data-v="${S.tab}">⬇ Exportar CSV</button></div></main>`);r.innerHTML=head()+body;window.scrollTo(0,y);
 }
 
@@ -1063,7 +1148,7 @@ document.addEventListener('click',e=>{
     tema:()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;LS.set('tema',n)},
     tab:()=>{S.tab=D.v;LS.set('tab',D.v);render();window.scrollTo(0,0)},hist:()=>{S.hist=D.v;render()},
     anular:()=>anular(D.id),cgadd:cgAgregar,cgdel:()=>cgQuitar(Number(D.i)),cgok:cgCrear,cgcancel:()=>cgCancelar(D.id),cpadd:cpAgregar,cpdel:()=>cpQuitar(Number(D.i)),cpok:cpCrear,cpx:()=>cpAnular(D.id),pvn:nuevoProv,pvt:()=>toggleProv(D.id,D.v==='1'),pvc:()=>{S.provSel=D.id;render();window.scrollTo(0,0)},pvx:()=>{S.provSel=null;render()},pvp:()=>pvPagar(D.id),gxn:gxCrear,gxx:()=>gxAnular(D.id),csv:()=>exportar(D.v),rvn:nuevoRev,rvg:()=>guardarRev(D.id),rvt:()=>toggleRev(D.id,D.v==='1'),rvc:()=>{S.revSel=D.id;render();window.scrollTo(0,0)},rvx:()=>{S.revSel=null;render()},rvp:()=>revCobrar(D.id),rendok:()=>aprobarRendicion(D.id),ajuste:guardarAjuste,gprod:()=>guardarProducto(D.id),tprod:()=>toggleProducto(D.id,D.v==='1'),nprod:nuevoProducto,
-    nmarca:nuevaMarca,tmarca:()=>toggleMarca(D.id,D.v==='1'),nubi:nuevaUbi,tubi:()=>toggleUbi(D.id,D.v==='1'),nusu:nuevoUsuario,bkgen:()=>generarBackup(false),bkrest:_bkPedirArchivo,tusu:()=>toggleUsuario(D.id,D.v==='1')};
+    nmarca:nuevaMarca,tmarca:()=>toggleMarca(D.id,D.v==='1'),nubi:nuevaUbi,tubi:()=>toggleUbi(D.id,D.v==='1'),nusu:nuevoUsuario,arp:()=>{S.pm.pun.push({n:'',t:'camioneta'});render()},aru:()=>{S.pm.usu.push({e:'',n:'',r:'vendedor_camioneta',p:''});render()},arq:()=>{S.pm[D.g].splice(+D.i,1);render()},arx:arEjecutar,arc:arCopiar,arn:()=>{S.pm=arNuevo();render()},bkgen:()=>generarBackup(false),bkrest:_bkPedirArchivo,tusu:()=>toggleUsuario(D.id,D.v==='1')};
   if(A[D.a])A[D.a]();
 });
 document.addEventListener('change',e=>{if(e.target.id==='vf'&&e.target.value){S.fecha=e.target.value;subVentas();e.target.blur();render()}});
