@@ -1,5 +1,5 @@
 rules_version = '2';
-// PeloteAR — Reglas Firestore (v2: datos propios de cada dueño en Firestore).
+// PeloteAR — Reglas Firestore (v3 · 14/11/2026: permite el campo panelDueno —lo cambia solo el admin— para el Plus «Panel del dueño»).
 // Publicar en Firebase Console → proyecto pelotear-1f37e → Firestore Database → Reglas → pegar TODO → Publicar.
 // Estas reglas NO borran ni modifican datos: solo controlan quién puede leer/escribir.
 service cloud.firestore {
@@ -22,7 +22,8 @@ service cloud.firestore {
         && (!('demoHasta' in request.resource.data) || request.resource.data.demoHasta <= request.time + duration.value(15, 'd'));
       allow update: if esAdmin()
         || (esDueno(uid)
-            && request.resource.data.keys().hasOnly(['email','nombre','alta','ultimoAcceso','app','demoHasta'])
+            && request.resource.data.keys().hasOnly(['email','nombre','alta','ultimoAcceso','app','demoHasta','panelDueno'])
+            && request.resource.data.get('panelDueno', null) == resource.data.get('panelDueno', null)
             && (request.resource.data.get('demoHasta', null) == resource.data.get('demoHasta', null)
                 || (!('demoHasta' in resource.data) && request.resource.data.demoHasta <= request.time + duration.value(15, 'd'))));
       allow delete: if esAdmin();

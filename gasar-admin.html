@@ -3,6 +3,7 @@
   Versión: 1.6.0-prueba
   Fecha: 2026-11-08
   Changelog:
+   - 1.7.1: el aviso de conexión lenta ahora indica reintentar o entrar por la página de inicio de GasAR (portal con 4 botones). Solo cambia un texto.
    - 1.6.0-prueba: PRUEBA DE 14 DÍAS SIN BLOQUEO. Las distribuidoras nuevas nacen con demoHasta (14 días). Mientras dura, cartel ámbar con los días; al vencer, cartel rojo titilante fijo que no se puede cerrar, con botón para activar por WhatsApp. La app sigue funcionando. En Modo Raven: etiqueta de prueba y botones «Activar cliente» y «+7 días». Las distribuidoras que ya existen no tienen demoHasta: no ven nada. No toca datos ni reglas.
    - 1.5.1-instructivo: botón «❓» en el encabezado que abre el instructivo (/ayuda/). Solo agrega un enlace, no toca datos.
    - 1.5.0-backup: BACKUP estándar. Automático una vez por día al entrar el administrador (baja un JSON con todas las colecciones de la distribuidora y deja copia en IndexedDB), botón manual y restaurar catálogo (productos, marcas, puntos de venta, revendedores, proveedores) en la pestaña "Usuarios y backup". El historial de movimientos no se restaura desde el cliente: lo protegen las reglas.
@@ -254,7 +255,7 @@ const soyRaven=u=>u&&u.email===RAVEN_EMAIL&&u.emailVerified;
 
 function cleanup(){S.unsub.forEach(f=>{try{f()}catch(e){}});S.unsub=[]}
 /* Seguro anti-cuelgue: si en 12 s la pantalla azul sigue, se muestra el login y el motivo */
-setTimeout(function(){var sp=document.getElementById('splash');if(sp&&!sp.classList.contains('off')){sp.classList.add('off');try{toast('La conexión tardó demasiado. Reintentá o abrí la app desde Chrome.',true)}catch(e){}try{render()}catch(e){}}},12000);
+setTimeout(function(){var sp=document.getElementById('splash');if(sp&&!sp.classList.contains('off')){sp.classList.add('off');try{toast('La conexión está lenta. Esperá unos segundos y reintentá; si sigue, entrá desde la página de inicio de GasAR.',true)}catch(e){}try{render()}catch(e){}}},12000);
 auth.getRedirectResult().catch(function(e){hideSplash();toast('No se pudo ingresar con Google ('+(e.code||'error')+')',true)});
 auth.onAuthStateChanged(async u=>{
   cleanup();S.user=u;S.perfil=null;S.tid=null;S.raven=false;

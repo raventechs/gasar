@@ -1,0 +1,233 @@
+<!--
+  GasAR · PORTAL DE ENTRADA
+  Versión: 1.0.0
+  Fecha: 2026-11-16
+  Qué hace: una sola dirección con 4 botones (Administración, Reparto, Distribución, Venta mostrador).
+    Al tocar uno pide el ingreso (Google o mail y clave), verifica el rol del usuario y lo manda a la app que le corresponde.
+    Si el usuario no tiene permiso para esa sección, lo dice y no lo deja pasar.
+  No modifica datos: solo LEE usuarios/{uid}. Las apps gasar-admin.html y gasar-vendedor.html siguen igual y siguen
+    funcionando con sus direcciones de siempre. La sesión se comparte (mismo sitio, mismo proyecto de Firebase).
+  Roles: administrador y administracion → Administración · vendedor_camioneta → Reparto ·
+         vendedor_revendedores → Distribución · vendedor_central → Venta mostrador.
+  Cuenta Raven (modo soporte): no tiene documento en usuarios; en Administración la verifica la propia app de administración.
+  PENDIENTE:
+   - Si más adelante GasAR tiene dominio propio, apuntarlo a esta página.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A57C8">
+<title>GasAR · Ingresar</title>
+<link rel="icon" href="icon-gasar-192.png">
+<link rel="apple-touch-icon" href="icon-gasar-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E8ECF0;--card:#fff;--ink:#101A24;--mut:#55677A;--line:#C9D2DB;--pri:#0A57C8;--pri-ink:#fff;--ok:#0E8A4F;--warn:#B8470C;--bad:#B42318;--chip:#DCE4EC;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Barlow',system-ui,sans-serif;font-size:16px;min-height:100%}
+h1,h2,h3,.big{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;margin:0}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+main{max-width:520px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 18px 40px}
+.brand{text-align:center;padding:18px 0 6px}
+.brand h1{font-size:40px;color:var(--pri);letter-spacing:.5px}
+.brand p{margin:6px 0 0;color:var(--mut)}
+.grid{display:grid;gap:12px;margin-top:20px}
+.sec{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:16px}
+.sec:active{transform:scale(.99);border-color:var(--pri)}
+.sec .ic{font-size:30px;width:52px;height:52px;border-radius:12px;background:var(--chip);display:flex;align-items:center;justify-content:center;flex:none}
+.sec b{display:block;font-family:'Barlow Semi Condensed',sans-serif;font-size:22px}
+.sec span.d{display:block;color:var(--mut);font-size:15px;margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-top:20px}
+.card h2{font-size:26px;margin-bottom:4px}
+.card .sub{color:var(--mut);margin:0 0 14px}
+label{display:block;font-weight:600;color:var(--mut);margin:12px 0 6px}
+input{width:100%;padding:14px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
+.btn{width:100%;padding:15px;border:0;border-radius:12px;font-weight:600;font-size:17px;margin-top:14px}
+.btn.pri{background:var(--pri);color:var(--pri-ink);letter-spacing:.5px}
+.btn.sec2{background:var(--chip);color:var(--ink);border:2px solid var(--line)}
+.btn[disabled]{opacity:.6}
+.or{display:flex;align-items:center;gap:10px;color:var(--mut);margin:16px 0 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+.back{background:none;border:0;color:var(--pri);font-weight:600;padding:12px 0 0;font-size:16px}
+.msg{margin-top:14px;padding:12px 14px;border-radius:12px;font-size:15px;display:none}
+.msg.on{display:block}
+.msg.err{background:#FDECEA;color:var(--bad);border:1px solid #F3B8B2}
+.msg.warn{background:#FFF3E6;color:var(--warn);border:1px solid #F5CFA5}
+.msg.ok{background:#E6F6EE;color:var(--ok);border:1px solid #A8DDC2}
+.pie{text-align:center;color:var(--mut);font-size:13px;margin-top:26px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><h1>GasAR</h1><p id="sub">Elegí cómo vas a trabajar</p></div>
+
+  <!-- Vista 1: los 4 botones -->
+  <section id="vHome" class="grid">
+    <button class="sec" data-s="admin" type="button"><span class="ic">📊</span><span><b>Administración</b><span class="d">Precios, stock, usuarios, caja y reportes</span></span></button>
+    <button class="sec" data-s="reparto" type="button"><span class="ic">🚚</span><span><b>Reparto</b><span class="d">Camioneta: cargas, ventas en la calle y rendición</span></span></button>
+    <button class="sec" data-s="distribucion" type="button"><span class="ic">🏪</span><span><b>Distribución</b><span class="d">Revendedores: ventas a cuenta y cobranzas</span></span></button>
+    <button class="sec" data-s="mostrador" type="button"><span class="ic">🛒</span><span><b>Venta mostrador</b><span class="d">Central: venta al público, caja y stock</span></span></button>
+  </section>
+
+  <!-- Vista 2: ingreso -->
+  <section id="vLogin" class="card hide">
+    <h2 id="lTit">Ingresar</h2>
+    <p class="sub" id="lSub">Entrá con tu usuario</p>
+    <div id="boxEmbed" class="msg warn on">Estás abriendo GasAR dentro de otra aplicación (por ejemplo WhatsApp o Instagram). El ingreso con Google puede fallar acá: abrí este enlace en tu navegador (Chrome o Safari), o ingresá con tu mail y clave, que funciona igual.
+      <button class="btn sec2" id="bCopiar" type="button">COPIAR ENLACE</button></div>
+    <button class="btn sec2" id="bGoogle" type="button">Entrar con Google</button>
+    <div class="or">o con tu mail</div>
+    <label for="em">Mail</label><input id="em" type="email" inputmode="email" autocomplete="username" autocapitalize="off">
+    <label for="pw">Clave</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn pri" id="bEntrar" type="button">ENTRAR</button>
+    <div id="msg" class="msg" role="alert"></div>
+    <button class="back" id="bVolver" type="button">← Volver</button>
+  </section>
+
+  <div id="boxOff" class="msg warn">No se pudo cargar la conexión. Revisá tu internet y volvé a intentar.
+    <button class="btn sec2" onclick="location.reload()" type="button">REINTENTAR</button></div>
+
+  <p class="pie">Cada persona ve solo la sección que tiene habilitada.</p>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+'use strict';
+var FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
+var SECS={
+  admin:{nombre:'Administración',roles:['administrador','administracion'],url:'gasar-admin.html',conUbi:false},
+  reparto:{nombre:'Reparto',roles:['vendedor_camioneta'],url:'gasar-vendedor.html',conUbi:true},
+  distribucion:{nombre:'Distribución',roles:['vendedor_revendedores'],url:'gasar-vendedor.html',conUbi:true},
+  mostrador:{nombre:'Venta mostrador',roles:['vendedor_central'],url:'gasar-vendedor.html',conUbi:true}
+};
+var $=function(s){return document.querySelector(s)};
+var sec=null,secK=null,auth=null,db=null,verificando=false;
+
+function show(id,on){var e=$(id);if(e)e.classList.toggle('hide',!on)}
+function msg(t,tipo,html){var m=$('#msg');m.className='msg on '+(tipo||'err');if(html)m.innerHTML=t;else m.textContent=t}
+function limpiar(){var m=$('#msg');m.className='msg';m.textContent=''}
+function ocupado(b){['#bGoogle','#bEntrar'].forEach(function(s){$(s).disabled=b})}
+
+/* Navegador embebido (WhatsApp, Instagram, Facebook, etc.): Google suele fallar ahí */
+var EMBED=/FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|Messenger|; wv\)/i.test(navigator.userAgent||'');
+
+function abrir(k){
+  secK=k;sec=SECS[k];if(!sec)return;
+  try{sessionStorage.setItem('gasar_sec',k)}catch(e){}
+  limpiar();verificando=false;ocupado(false);
+  $('#lTit').textContent=sec.nombre;$('#lSub').textContent='Entrá con tu usuario de '+sec.nombre;
+  $('#sub').textContent='Ingresar a '+sec.nombre;
+  show('#vHome',false);show('#vLogin',true);
+  $('#boxEmbed').classList.toggle('hide',!EMBED);
+  /* Si ya hay una sesión abierta, verificamos directo sin pedir clave de nuevo */
+  if(auth&&auth.currentUser){verificar(auth.currentUser)}
+}
+function volver(){
+  sec=null;secK=null;try{sessionStorage.removeItem('gasar_sec')}catch(e){}
+  limpiar();show('#vLogin',false);show('#vHome',true);$('#sub').textContent='Elegí cómo vas a trabajar';
+}
+
+/* Qué sección le corresponde a un perfil (para orientar si tocó el botón equivocado) */
+function seccionDe(p){
+  if(!p)return null;
+  for(var k in SECS){if(SECS[k].roles.indexOf(p.rol)>=0)return k}
+  return null;
+}
+
+async function verificar(u){
+  if(!sec||verificando)return;
+  verificando=true;ocupado(true);msg('Verificando permiso…','ok');
+  try{
+    var snap=await db.collection('usuarios').doc(u.uid).get();
+    var perm=false,otra=null,p=null;
+    if(snap.exists){
+      p=snap.data();
+      if(p.activo===true){
+        otra=seccionDe(p);
+        perm=sec.roles.indexOf(p.rol)>=0&&(!sec.conUbi||!!p.ubicacionId);
+      }
+    }else if(secK==='admin'){
+      /* Sin documento de usuario: puede ser la cuenta Raven de soporte. La app de administración la reconoce y,
+         si no corresponde, cierra la sesión y avisa que no está habilitada. */
+      msg('Verificando en Administración…','ok');location.replace(sec.url);return;
+    }
+    if(perm){msg('Listo, entrando…','ok');location.replace(sec.url);return}
+    /* Sin permiso para esta sección */
+    var txt='No tenés permiso habilitado para '+sec.nombre+'.';
+    if(p&&p.activo===true&&sec.roles.indexOf(p.rol)>=0&&sec.conUbi&&!p.ubicacionId){
+      await auth.signOut().catch(function(){});
+      msg(txt+' Tu usuario todavía no tiene un punto de venta asignado. Pedile al administrador que lo asigne.','err');
+    }else if(otra&&p&&p.activo===true){
+      msg(txt+' Tu usuario corresponde a <b>'+SECS[otra].nombre+'</b>.<button class="btn pri" id="bOtra" type="button">IR A '+SECS[otra].nombre.toUpperCase()+'</button>','err',true);
+      $('#bOtra').onclick=function(){abrir(otra)};
+    }else{
+      await auth.signOut().catch(function(){});
+      msg(txt+' Pedile acceso al administrador.','err');
+    }
+  }catch(e){
+    console.error(e);
+    await auth.signOut().catch(function(){});
+    msg('No se pudo verificar tu usuario ('+(e.code||'error')+'). Reintentá.','err');
+  }
+  verificando=false;ocupado(false);
+}
+
+async function entrarMail(){
+  var e=$('#em').value.trim(),p=$('#pw').value;
+  if(!e||!p)return msg('Poné tu mail y tu clave.','err');
+  ocupado(true);msg('Ingresando…','ok');
+  try{await auth.signInWithEmailAndPassword(e,p)}
+  catch(x){
+    var c=x&&x.code;
+    msg(c==='auth/network-request-failed'?'Sin conexión. Revisá tu internet.':(c==='auth/too-many-requests'?'Demasiados intentos. Esperá unos minutos y probá de nuevo.':'Mail o clave incorrectos.'),'err');
+    ocupado(false);
+  }
+}
+async function entrarGoogle(){
+  ocupado(true);msg('Abriendo Google…','ok');
+  var prov=new firebase.auth.GoogleAuthProvider();
+  try{await auth.signInWithPopup(prov)}
+  catch(e){
+    var c=e&&e.code;
+    if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-this-environment'||c==='auth/cancelled-popup-request'){
+      try{await auth.signInWithRedirect(prov);return}catch(x){}
+    }
+    var t={'auth/popup-closed-by-user':'Cerraste la ventana de Google. Probá de nuevo.','auth/network-request-failed':'Sin conexión. Revisá tu internet.','auth/unauthorized-domain':'Este sitio todavía no está autorizado para ingresar con Google. Usá mail y clave.','auth/operation-not-allowed':'El ingreso con Google no está habilitado. Usá mail y clave.'}[c];
+    msg((t||'No se pudo ingresar con Google.')+(EMBED?' Abrí el enlace en tu navegador o usá mail y clave.':' Probá con mail y clave.'),'err');
+    ocupado(false);
+  }
+}
+
+function copiar(){
+  var url=location.href.split('#')[0];
+  var ok=function(){msg('Enlace copiado. Pegalo en tu navegador.','ok')};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(ok,function(){msg('Copiá este enlace: '+url,'warn')})}
+  else msg('Copiá este enlace: '+url,'warn');
+}
+
+function iniciar(){
+  document.querySelectorAll('.sec').forEach(function(b){b.onclick=function(){abrir(b.dataset.s)}});
+  $('#bVolver').onclick=volver;$('#bEntrar').onclick=entrarMail;$('#bGoogle').onclick=entrarGoogle;$('#bCopiar').onclick=copiar;
+  $('#pw').addEventListener('keydown',function(e){if(e.key==='Enter')entrarMail()});
+  if(typeof firebase==='undefined'){$('#boxOff').classList.add('on');return}
+  firebase.initializeApp(FB);auth=firebase.auth();db=firebase.firestore();
+  auth.getRedirectResult().catch(function(e){msg('No se pudo ingresar con Google ('+((e&&e.code)||'error')+').','err')});
+  auth.onAuthStateChanged(function(u){
+    if(!u){verificando=false;ocupado(false);return}
+    /* Volvió de Google por redirección: recuperamos la sección elegida */
+    if(!sec){try{var k=sessionStorage.getItem('gasar_sec');if(k&&SECS[k])abrir(k)}catch(e){}}
+    else verificar(u);
+  });
+}
+iniciar();
+</script>
+</body>
+</html>
