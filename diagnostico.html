@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GasAR · Diagnóstico</title>
+<style>body{font-family:system-ui,sans-serif;padding:16px;background:#f3f5f8;color:#111}h1{font-size:20px}pre{background:#fff;border:1px solid #ccd;border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-word;font-size:14px}button{font-size:18px;padding:14px;width:100%;border:0;border-radius:12px;background:#0b57c8;color:#fff;margin:10px 0}</style></head><body>
+<h1>GasAR · Diagnóstico de conexión</h1><p>Tocá el botón y mandame una captura de lo que aparece.</p><button id="b">PROBAR</button><pre id="o">Esperando…</pre>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+var FB={apiKey:'AIzaSyCNPAaSEfy38EP0qycOKREvwAR3ke4Jlxc',authDomain:'gasar-ee15b.firebaseapp.com',projectId:'gasar-ee15b',storageBucket:'gasar-ee15b.firebasestorage.app',messagingSenderId:'836541879587',appId:'1:836541879587:web:7ffc02bf08c957179b6896'};
+var o=document.getElementById('o');function p(t){o.textContent+='\n'+t}
+document.getElementById('b').onclick=async function(){
+ o.textContent='Versión diagnóstico 1';
+ p('Proyecto: '+FB.projectId);
+ p('Dominio: '+location.host);
+ p('Navegador en línea: '+navigator.onLine);
+ try{var r=await fetch('https://firestore.googleapis.com/v1/projects/'+FB.projectId+'/databases/(default)/documents/usuarios/prueba?key='+FB.apiKey);
+  var t=await r.text();p('\n[1] Servidor Firestore (REST): HTTP '+r.status);p(t.slice(0,400))}
+ catch(e){p('\n[1] REST falló: '+e.message)}
+ try{firebase.initializeApp(FB);var db=firebase.firestore();db.settings({experimentalForceLongPolling:true});
+  var t0=Date.now();var s=await Promise.race([db.collection('usuarios').doc('prueba').get({source:'server'}),new Promise(function(_,j){setTimeout(function(){j({code:'timeout-10s'})},10000)})]);
+  p('\n[2] SDK Firestore: OK en '+(Date.now()-t0)+' ms')}
+ catch(e){p('\n[2] SDK Firestore: '+(e.code||e.message))}
+ p('\nFin.')};
+</script></body></html>
