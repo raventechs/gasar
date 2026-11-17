@@ -1,7 +1,8 @@
 <!--
   GasAR · PORTAL DE ENTRADA
-  Versión: 1.0.0
-  Fecha: 2026-11-16
+  Versión: 1.1.0
+  Fecha: 2026-11-17
+  1.1.0: ahora se puede instalar como app (manifiesto + service worker + botón «Instalar GasAR»). Una sola app instalada para todo el personal.
   Qué hace: una sola dirección con 4 botones (Administración, Reparto, Distribución, Venta mostrador).
     Al tocar uno pide el ingreso (Google o mail y clave), verifica el rol del usuario y lo manda a la app que le corresponde.
     Si el usuario no tiene permiso para esa sección, lo dice y no lo deja pasar.
@@ -20,6 +21,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0A57C8">
 <title>GasAR · Ingresar</title>
+<link rel="manifest" href="manifest-gasar.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GasAR">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="icon-gasar-192.png">
 <link rel="apple-touch-icon" href="icon-gasar-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -75,6 +81,8 @@ input{width:100%;padding:14px;border:2px solid var(--line);border-radius:12px;ba
     <button class="sec" data-s="mostrador" type="button"><span class="ic">🛒</span><span><b>Venta mostrador</b><span class="d">Central: venta al público, caja y stock</span></span></button>
   </section>
 
+  <button class="btn sec2 hide" id="bInstalar" type="button">📲 INSTALAR GASAR EN MI CELULAR</button>
+
   <!-- Vista 2: ingreso -->
   <section id="vLogin" class="card hide">
     <h2 id="lTit">Ingresar</h2>
@@ -125,13 +133,13 @@ function abrir(k){
   limpiar();verificando=false;ocupado(false);
   $('#lTit').textContent=sec.nombre;$('#lSub').textContent='Entrá con tu usuario de '+sec.nombre;
   $('#sub').textContent='Ingresar a '+sec.nombre;
-  show('#vHome',false);show('#vLogin',true);
+  show('#vHome',false);show('#bInstalar',false);show('#vLogin',true);
   $('#boxEmbed').classList.toggle('hide',!EMBED);
   /* Si ya hay una sesión abierta, verificamos directo sin pedir clave de nuevo */
   if(auth&&auth.currentUser){verificar(auth.currentUser)}
 }
 function volver(){
-  sec=null;secK=null;try{sessionStorage.removeItem('gasar_sec')}catch(e){}
+  sec=null;secK=null;if(_pi)show('#bInstalar',true);try{sessionStorage.removeItem('gasar_sec')}catch(e){}
   limpiar();show('#vLogin',false);show('#vHome',true);$('#sub').textContent='Elegí cómo vas a trabajar';
 }
 
@@ -228,6 +236,12 @@ function iniciar(){
   });
 }
 iniciar();
+/* Instalación como app (una sola app para todos: después cada uno entra por su botón) */
+var _pi=null;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();_pi=e;if(!sec)show('#bInstalar',true)});
+$('#bInstalar').onclick=function(){if(!_pi)return;_pi.prompt();_pi.userChoice.finally(function(){_pi=null;show('#bInstalar',false)})};
+window.addEventListener('appinstalled',function(){show('#bInstalar',false)});
+if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw-gasar-portal.js').catch(function(){})});
 </script>
 </body>
 </html>

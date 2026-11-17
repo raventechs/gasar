@@ -12,7 +12,7 @@ res=[]
 def chk(n,c,x=''):
     res.append(bool(c)); print(('OK    ' if c else 'FALLA ')+n,x)
 async def abrir(br,raven=True):
-    ctx=await br.new_context(viewport={'width':390,'height':844}); pg=await ctx.new_page(); errs=[]
+    ctx=await br.new_context(viewport={'width':390,'height':844},service_workers='block'); pg=await ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e)))
     async def gs(r):
         if 'firebase-app-compat' in r.request.url: await r.fulfill(body=FAKE,content_type='application/javascript')

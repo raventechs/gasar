@@ -18,7 +18,7 @@ USERS={
  'sub':{'rol':'vendedor_camioneta','activo':True,'ubicacionId':None},
 }
 async def nuevo(br,ua=None,previo=None):
-    ctx=await br.new_context(viewport={'width':390,'height':844},user_agent=ua) if ua else await br.new_context(viewport={'width':390,'height':844})
+    ctx=await br.new_context(viewport={'width':390,'height':844},user_agent=ua,service_workers='block') if ua else await br.new_context(viewport={'width':390,'height':844},service_workers='block')
     pg=await ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e)))
     async def gs(r):
