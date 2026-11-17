@@ -1,5 +1,5 @@
 /* GasAR portal de entrada · Service Worker · v1.0.0 */
-const CACHE='gasar-portal-v2';
+const CACHE='gasar-portal-v3';
 const SHELL=['./','./index.html','./manifest-gasar.webmanifest','./icon-gasar-192.png','./icon-gasar-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith('gasar-portal')&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});

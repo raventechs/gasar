@@ -1,7 +1,8 @@
 <!--
   GasAR · PORTAL DE ENTRADA
-  Versión: 1.2.0
+  Versión: 1.2.1
   Fecha: 2026-11-17
+  1.2.1: conexión por long polling forzado y límite de 9 s por intento (antes podía quedar en «Verificando permiso…» sin salir).
   1.2.0: si Firestore dice «unavailable» al verificar el usuario: modo de conexión automático, 3 reintentos y botón Reintentar sin cerrar la sesión.
   1.1.0: ahora se puede instalar como app (manifiesto + service worker + botón «Instalar GasAR»). Una sola app instalada para todo el personal.
   Qué hace: una sola dirección con 4 botones (Administración, Reparto, Distribución, Venta mostrador).
@@ -155,7 +156,7 @@ function seccionDe(p){
 async function leerPerfil(uid){
   var ult;
   for(var i=0;i<3;i++){
-    try{return await db.collection('usuarios').doc(uid).get()}
+    try{return await Promise.race([db.collection('usuarios').doc(uid).get(),new Promise(function(_,rj){setTimeout(function(){var x=new Error('timeout');x.code='unavailable';rj(x)},9000)})])}
     catch(e){
       ult=e;
       if(!(e&&(e.code==='unavailable'||e.code==='deadline-exceeded')))throw e;
@@ -248,7 +249,7 @@ function iniciar(){
   if(typeof firebase==='undefined'){$('#boxOff').classList.add('on');return}
   firebase.initializeApp(FB);auth=firebase.auth();db=firebase.firestore();
   /* Redes móviles o filtros que bloquean la conexión continua de Firestore: se detecta solo y pasa a otra modalidad */
-  try{db.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
+  try{db.settings({experimentalForceLongPolling:true,merge:true})}catch(e){}
   auth.getRedirectResult().catch(function(e){msg('No se pudo ingresar con Google ('+((e&&e.code)||'error')+').','err')});
   auth.onAuthStateChanged(function(u){
     if(!u){verificando=false;ocupado(false);return}
