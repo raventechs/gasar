@@ -81,6 +81,20 @@ async def main():
         await pg.click('button[data-s=admin]'); await pg.evaluate("window.__login({uid:'ina',email:'ina@t.com'})"); await pg.wait_for_timeout(900)
         chk('usuario inactivo: sesión cerrada',await pg.evaluate("firebase.auth().currentUser==null"))
         await ctx.close()
+        # conexión inestable: Firestore "unavailable" dos veces y luego responde -> entra solo
+        ctx,pg,e=await nuevo(br)
+        await pg.evaluate("""()=>{window.__fail=2;const o=db.collection.bind(db);db.collection=n=>{const c=o(n);if(n!=='usuarios')return c;return {doc:id=>{const d=c.doc(id);const g=d.get.bind(d);return {get:async()=>{if(window.__fail-->0){const x=new Error('x');x.code='unavailable';throw x}return g()}}}}}}""")
+        await pg.click('button[data-s=admin]'); await pg.evaluate("window.__login({uid:'adm',email:'adm@t.com'})"); await pg.wait_for_timeout(4500)
+        chk('si Firestore falla 2 veces y luego responde: entra solo',pg.url.endswith('gasar-admin.html'),pg.url)
+        await ctx.close()
+        # conexión caída del todo: avisa, no cierra la sesión y permite reintentar
+        ctx,pg,e=await nuevo(br)
+        await pg.evaluate("""()=>{window.__fail=3;const o=db.collection.bind(db);db.collection=n=>{const c=o(n);if(n!=='usuarios')return c;return {doc:id=>{const d=c.doc(id);const g=d.get.bind(d);return {get:async()=>{if(window.__fail-->0){const x=new Error('x');x.code='unavailable';throw x}return g()}}}}}}""")
+        await pg.click('button[data-s=admin]'); await pg.evaluate("window.__login({uid:'adm',email:'adm@t.com'})"); await pg.wait_for_timeout(5500)
+        chk('sin conexión: muestra Reintentar y NO cierra la sesión',await pg.is_visible('#bReint') and await pg.evaluate("firebase.auth().currentUser!=null"))
+        await pg.click('#bReint'); await pg.wait_for_timeout(1500)
+        chk('al reintentar con conexión: entra sin pedir clave',pg.url.endswith('gasar-admin.html'),pg.url)
+        await ctx.close()
         # navegador embebido
         ctx,pg,e=await nuevo(br,ua='Mozilla/5.0 (Linux; Android 13; wv) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 Instagram 300.0')
         await pg.click('button[data-s=reparto]')

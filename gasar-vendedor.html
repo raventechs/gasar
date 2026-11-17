@@ -174,6 +174,7 @@ if(FB.apiKey==='COMPLETAR'){
 firebase.initializeApp(FB);
 const auth=firebase.auth(),db=firebase.firestore();
 const FV=firebase.firestore.FieldValue,TS=firebase.firestore.Timestamp;
+try{db.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistencia',e.code));
 const T=()=>db.collection('tenants').doc(S.tid);
 /* ---------- Prueba de 14 días (sin bloqueo): cartel fijo que no se puede cerrar al vencer ---------- */

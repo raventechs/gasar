@@ -1,7 +1,8 @@
 <!--
   GasAR · PORTAL DE ENTRADA
-  Versión: 1.1.0
+  Versión: 1.2.0
   Fecha: 2026-11-17
+  1.2.0: si Firestore dice «unavailable» al verificar el usuario: modo de conexión automático, 3 reintentos y botón Reintentar sin cerrar la sesión.
   1.1.0: ahora se puede instalar como app (manifiesto + service worker + botón «Instalar GasAR»). Una sola app instalada para todo el personal.
   Qué hace: una sola dirección con 4 botones (Administración, Reparto, Distribución, Venta mostrador).
     Al tocar uno pide el ingreso (Google o mail y clave), verifica el rol del usuario y lo manda a la app que le corresponde.
@@ -150,11 +151,24 @@ function seccionDe(p){
   return null;
 }
 
+/* Lee el perfil con reintentos: justo después de ingresar la conexión puede tardar unos segundos en estar lista */
+async function leerPerfil(uid){
+  var ult;
+  for(var i=0;i<3;i++){
+    try{return await db.collection('usuarios').doc(uid).get()}
+    catch(e){
+      ult=e;
+      if(!(e&&(e.code==='unavailable'||e.code==='deadline-exceeded')))throw e;
+      if(i<2){msg('Conectando… intento '+(i+2)+' de 3','ok');await new Promise(function(r){setTimeout(r,1500)})}
+    }
+  }
+  throw ult;
+}
 async function verificar(u){
   if(!sec||verificando)return;
   verificando=true;ocupado(true);msg('Verificando permiso…','ok');
   try{
-    var snap=await db.collection('usuarios').doc(u.uid).get();
+    var snap=await leerPerfil(u.uid);
     var perm=false,otra=null,p=null;
     if(snap.exists){
       p=snap.data();
@@ -182,8 +196,14 @@ async function verificar(u){
     }
   }catch(e){
     console.error(e);
-    await auth.signOut().catch(function(){});
-    msg('No se pudo verificar tu usuario ('+(e.code||'error')+'). Reintentá.','err');
+    if(e&&(e.code==='unavailable'||e.code==='deadline-exceeded')){
+      /* Problema de conexión: no cerramos la sesión, se reintenta sin pedir clave de nuevo */
+      msg('No pudimos conectar con el servidor. Revisá tu señal e intentá de nuevo.<button class="btn pri" id="bReint" type="button">REINTENTAR</button>','err',true);
+      $('#bReint').onclick=function(){if(auth.currentUser)verificar(auth.currentUser)};
+    }else{
+      await auth.signOut().catch(function(){});
+      msg('No se pudo verificar tu usuario ('+(e.code||'error')+'). Reintentá.','err');
+    }
   }
   verificando=false;ocupado(false);
 }
@@ -227,6 +247,8 @@ function iniciar(){
   $('#pw').addEventListener('keydown',function(e){if(e.key==='Enter')entrarMail()});
   if(typeof firebase==='undefined'){$('#boxOff').classList.add('on');return}
   firebase.initializeApp(FB);auth=firebase.auth();db=firebase.firestore();
+  /* Redes móviles o filtros que bloquean la conexión continua de Firestore: se detecta solo y pasa a otra modalidad */
+  try{db.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
   auth.getRedirectResult().catch(function(e){msg('No se pudo ingresar con Google ('+((e&&e.code)||'error')+').','err')});
   auth.onAuthStateChanged(function(u){
     if(!u){verificando=false;ocupado(false);return}
