@@ -185,3 +185,9 @@ Regla: cuentas anteriores a 9/11/2026 conservan todo; las nuevas lo ven en la pr
 - Historial VISIBLE en la versión mínima.
 - Primeros 3 días desde el alta: la Caja cobra solo con importe + medio de pago (sin botones de productos ni pestaña Menú). Pasado ese plazo (`botonesDesde`) aparecen los botones; Raven puede adelantarlo con el interruptor "Botones de productos" del menú oculto.
 - Cuentas anteriores no cambian. Pruebas: 35/35. Pendiente: aprobación de Ruben para replicar a PanAR, CarneAR, BarbeAR y lavAR.
+
+### Versión mínima replicada (18/11/2026)
+- PanAR v1.11: igual que PizzAR v3.3 (cuentas nuevas desde el 18/11; primeros 3 días solo importe + medio de pago; luego botones; Historial visible; pestaña Adicionales con Stock, Recetas, Sucursales y Panel del dueño; interruptores «Versión de prueba mínima» y «Botones de productos» en el menú oculto). Pruebas 25/25.
+- Botones grandes tipo PuntoVenta (clase rt-min) en PizzAR y PanAR en la versión mínima.
+- CarneAR: ya tenía el modo Principiante (Training Wheels): importe + medio de pago, Hoy, Más con lista de adicionales con candado; el admin lo pasa a Avanzado desde Mis clientes. No se modificó.
+- Pendiente: BarbeAR y lavAR (no tienen modo mínimo; requieren portar el modelo de CarneAR).
