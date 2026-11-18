@@ -191,3 +191,9 @@ Regla: cuentas anteriores a 9/11/2026 conservan todo; las nuevas lo ven en la pr
 - Botones grandes tipo PuntoVenta (clase rt-min) en PizzAR y PanAR en la versión mínima.
 - CarneAR: ya tenía el modo Principiante (Training Wheels): importe + medio de pago, Hoy, Más con lista de adicionales con candado; el admin lo pasa a Avanzado desde Mis clientes. No se modificó.
 - Pendiente: BarbeAR y lavAR (no tienen modo mínimo; requieren portar el modelo de CarneAR).
+
+### Rodix v1.9.5 — revisión del módulo de ambulancias (18/11/2026)
+- El módulo = pestaña «🩹 Insumos» (se activa por cliente con features.checklistHabilitado): lista desde plantilla (7 ítems), tildar presente/falta, agregar/editar/borrar (solo dueño), confirmación diaria de revisión, alertas, chofer invitado (solo ve insumos y confirma).
+- Error encontrado y corregido: la pantalla no se actualizaba al tildar/crear/confirmar (hasta 60 s) y la revisión diaria se guardaba como «completa» aunque faltara un insumo. Ahora se actualiza al instante.
+- Pruebas (qa/harness/test_rodix_amb.py): 22/22.
+- Limitaciones a decidir: el modo práctica no activa el módulo (hay que activarlo desde el menú admin); sin vencimientos de medicamentos; sin cantidad real contada; una sola confirmación por día.
