@@ -17,7 +17,9 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Decisión de Ruben:** llevar el portal de bienvenida a las demás apps para que dar el alta sea simple. En PizzAR/PanAR: botones Dueño, Caja, Cocina (comandas) y, cuando exista, Delivery (hoy «Pedidos» es «Próximamente»). Primero PizzAR, después PanAR y el resto.
 
-**Pendientes en orden:** 1) crear una distribuidora de práctica en GasAR y probar los 4 botones; 2) portal de PizzAR (en curso) y PanAR; 3) botón «Consola Raven» en el portal de GasAR (a decidir); 4) probar en el celular la instalación y el enlace abierto desde WhatsApp.
+**Hecho 17/11 (noche): PizzAR v3.2 y PanAR v1.10** con pantalla de bienvenida por rol (PizzAR: Dueño / Caja / Cocina; PanAR: Dueño / Empleado). Caja, Cocina y Empleado entran con el PIN del punto de venta que ya existe; el dispositivo en modo Cocina muestra solo las comandas. Sin cambios en reglas ni datos; probado en simulador (16/16 y 11/11), sin probar todavía en el celular. Delivery queda fuera hasta que «Pedidos» deje de ser «Próximamente».
+
+**Pendientes en orden:** 1) crear una distribuidora de práctica en GasAR y probar los 4 botones; 2) probar en el celular las bienvenidas de PizzAR y PanAR; después replicar a CarneAR, BarbeAR, lavAR y PuntoVenta; 3) botón «Consola Raven» en el portal de GasAR (a decidir); 4) probar en el celular la instalación y el enlace abierto desde WhatsApp.
 
 ## Actualización del 14/11/2026 (leer primero)
 
