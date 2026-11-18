@@ -62,6 +62,14 @@ async def main():
         # sin documento y en Administración: pasa a la app de administración, que la verifica (cuenta de soporte)
         url,txt,e=await probar(br,'admin','sinDoc',True)
         chk('administración sin documento: deriva a la app de administración (ella verifica)',url.endswith('gasar-admin.html'),url)
+        # cuenta Raven (sin documento) por otro botón: ofrece la Consola Raven y no cierra la sesión
+        ctx,pg,e=await nuevo(br)
+        await pg.click('button[data-s=reparto]'); await pg.evaluate("window.__login({uid:'sinDoc',email:'raven@t.com'})"); await pg.wait_for_timeout(900)
+        chk('Reparto sin documento: ofrece CONSOLA RAVEN',await pg.is_visible('#bConsola'))
+        chk('sin documento: no cierra la sesión',await pg.evaluate("firebase.auth().currentUser!=null"))
+        await pg.click('#bConsola'); await pg.wait_for_timeout(600)
+        chk('CONSOLA RAVEN lleva a la app de administración',pg.url.endswith('gasar-admin.html'),pg.url)
+        await ctx.close()
         # tocó el botón equivocado pero su usuario es válido en otra sección: ofrece ir a la suya
         ctx,pg,e=await nuevo(br)
         await pg.click('button[data-s=admin]'); await pg.evaluate("window.__login({uid:'cam',email:'cam@t.com'})"); await pg.wait_for_timeout(900)

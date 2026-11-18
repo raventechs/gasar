@@ -1,6 +1,7 @@
 <!--
   GasAR · PORTAL DE ENTRADA
-  Versión: 1.2.1
+  Versión: 1.3.0
+  1.3.0: la cuenta Raven (sin documento de usuario) que entra por cualquier botón ve el acceso «CONSOLA RAVEN» en lugar de ser rechazada.
   Fecha: 2026-11-17
   1.2.1: conexión por long polling forzado y límite de 9 s por intento (antes podía quedar en «Verificando permiso…» sin salir).
   1.2.0: si Firestore dice «unavailable» al verificar el usuario: modo de conexión automático, 3 reintentos y botón Reintentar sin cerrar la sesión.
@@ -181,6 +182,12 @@ async function verificar(u){
       /* Sin documento de usuario: puede ser la cuenta Raven de soporte. La app de administración la reconoce y,
          si no corresponde, cierra la sesión y avisa que no está habilitada. */
       msg('Verificando en Administración…','ok');location.replace(sec.url);return;
+    }else{
+      /* Sin documento en otra sección: si es la cuenta Raven de soporte, ofrece la Consola Raven (la app de administración la reconoce).
+         No se cierra la sesión para que la consola la encuentre abierta. */
+      msg('No tenés permiso habilitado para '+sec.nombre+'. Si sos soporte Raven, entrá a la consola.<button class="btn pri" id="bConsola" type="button">CONSOLA RAVEN</button>','err',true);
+      $('#bConsola').onclick=function(){location.replace(SECS.admin.url)};
+      return;
     }
     if(perm){msg('Listo, entrando…','ok');location.replace(sec.url);return}
     /* Sin permiso para esta sección */
