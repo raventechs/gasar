@@ -6,6 +6,19 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Fuentes:** tablero maestro (`raventechs-tablero.html`, v2.4.0, ahora con una línea de backup por app), portal (`raventechs.github.io`), código de cada repo y lo que Ruben confirmó de palabra. Las tildes que se marcan tocando el tablero se guardan solo en el celular, así que este archivo es la referencia compartida.
 
+## Actualización del 17/11/2026 (leer primero)
+
+**GasAR — portal de entrada por rol (hecho y funcionando):**
+- Portal 1.2.1 (raventechs.github.io/gasar/): 4 botones (Administración, Reparto, Distribución, Venta mostrador); se ingresa con Google o mail y la app verifica el rol; sin permiso dice «No tenés permiso habilitado». Instalable como app. Las direcciones viejas (gasar-admin.html, gasar-vendedor.html) siguen funcionando.
+- **Puesta en marcha (llave en mano):** pestaña nueva en el Modo Raven (admin 1.8.0) para crear de una vez sucursales, usuarios y vendedores con los mails del cliente. Servicio de $60.000 sobre el alta (sin comisión para el vendedor).
+- **Causa de que no funcionara el 17/11:** la base de Firestore de gasar-ee15b no existía y, al crearla, quedó con el ID «default» sin paréntesis. Se eliminó (vacía) y se recreó como «(default)», región southamerica-east1, modo Producción, con las reglas de firestore.rules.txt pegadas. Ruben ya entra al Modo Raven desde el portal.
+- Conexión reforzada: long polling forzado, 3 reintentos de 9 s y botón REINTENTAR sin cerrar la sesión (portal, administración y vendedor). Página de diagnóstico en /gasar/diagnostico.html.
+- Precios acordados: alta $80.000 unipersonal, + $20.000-30.000 por sucursal adicional, + $60.000 puesta en marcha; mensual $30.000 (1 local), $60.000 (2-3 sucursales). Detalle en el proyecto «Faceta Comercial» (estructura-de-precios).
+
+**Decisión de Ruben:** llevar el portal de bienvenida a las demás apps para que dar el alta sea simple. En PizzAR/PanAR: botones Dueño, Caja, Cocina (comandas) y, cuando exista, Delivery (hoy «Pedidos» es «Próximamente»). Primero PizzAR, después PanAR y el resto.
+
+**Pendientes en orden:** 1) crear una distribuidora de práctica en GasAR y probar los 4 botones; 2) portal de PizzAR (en curso) y PanAR; 3) botón «Consola Raven» en el portal de GasAR (a decidir); 4) probar en el celular la instalación y el enlace abierto desde WhatsApp.
+
 ## Actualización del 14/11/2026 (leer primero)
 
 **Hecho:**
@@ -84,7 +97,7 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 | App | Estado | Etapas | Versión | Modo práctica / demo | Backup | Próximo paso |
 |---|---|---|---|---|---|---|
-| GasAR | 🟡 Para vender/probar | ✓✓✓·· | admin 1.5.0 · vendedor 1.3.0 | 🎓 Práctica (Modo Raven) | ✅ auto (solo administrador) + manual + restaurar catálogo (26/10; el historial de ventas/cajas NO se restaura desde la app por las reglas; probado en simulador, falta probar en tu celular) | Firebase → Authentication → Comenzar; habilitar Google y Correo/Contraseña. Después crear la distribuidora de PRÁCTICA y tildar los 10 pasos. |
+| GasAR | 🟡 Para vender/probar | ✓✓✓·· | portal 1.2.1 · admin 1.8.0 · vendedor 1.4.0 (portal por rol + Puesta en marcha, 17/11) | 🎓 Práctica (Modo Raven) | ✅ auto (solo administrador) + manual + restaurar catálogo (26/10; el historial de ventas/cajas NO se restaura desde la app por las reglas; probado en simulador, falta probar en tu celular) | Firebase → Authentication → Comenzar; habilitar Google y Correo/Contraseña. Después crear la distribuidora de PRÁCTICA y tildar los 10 pasos. |
 | manejAr | 🟢 Con clientes | ✓✓✓✓✓ | v2.3.0 | Demo propio (?demo=1, 4 semanas de datos) | ✅ auto diario + manual + restaurar (26/10, probado en simulador y en la página real); el archivo ya no lleva el plan/vencimiento | Plan Flota: revisar cómo se crea desde Ajustes y probarlo con Firebase real. Después, el backup nocturno de las 2 AM. |
 | MTC | 🔴 Urgente | ✓✓··· | v1.3 | — falta | ✅ auto + manual + restaurar (agregado 26/10; falta probar en tu celular). Además se corrigieron las sesiones de juegos y el historial del modo estudio, que nunca se guardaban | Sacar la API key del cliente con un proxy en Netlify Functions. |
 | CarneAR | 🟢 Con clientes | ✓✓✓·· | v2.7 prod · v2.8-beta | 🎓 Práctica (prod y beta) | ✅ auto + manual + restaurar (arreglado 26/10, probado en simulador; falta probar en tu celular) | Probar 🎓 Modo Práctica en una cuenta tuya; después pasar peso libre y login anónimo de la beta a producción. |
