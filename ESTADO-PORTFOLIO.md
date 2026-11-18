@@ -180,3 +180,8 @@ Regla: cuentas anteriores a 9/11/2026 conservan todo; las nuevas lo ven en la pr
 1. Leerlo al arrancar cualquier tarea sobre las apps.
 2. Al terminar una prueba o un cambio, actualizar la fila de esa app (etapas, backup y próximo paso).
 3. Una sola fuente de verdad: si el tablero y esto no coinciden, se corrige acá y en el tablero.
+
+### PizzAR v3.3 — ajuste de la versión mínima (17/11/2026)
+- Historial VISIBLE en la versión mínima.
+- Primeros 3 días desde el alta: la Caja cobra solo con importe + medio de pago (sin botones de productos ni pestaña Menú). Pasado ese plazo (`botonesDesde`) aparecen los botones; Raven puede adelantarlo con el interruptor "Botones de productos" del menú oculto.
+- Cuentas anteriores no cambian. Pruebas: 35/35. Pendiente: aprobación de Ruben para replicar a PanAR, CarneAR, BarbeAR y lavAR.
