@@ -19,6 +19,13 @@ async def nuevo(br,modo=None,negocio=True,comandas=True):
       firebase.auth().signInAnonymously=()=>window.__login({uid:'cajx',isAnonymous:true});
     }""",{'neg':negocio,'com':comandas})
     return ctx,pg,errs
+
+async def dueno(br,creacion):
+    ctx,pg,e=await nuevo(br,negocio=False)
+    await pg.evaluate("()=>{window.__wa=[];window.open=u=>{window.__wa.push(u);return null}}")
+    await pg.evaluate("(c)=>window.__login({uid:'own1',email:'o@t.com',emailVerified:true,metadata:{creationTime:c}})",creacion)
+    await pg.wait_for_timeout(2800)
+    return ctx,pg,e
 async def vis(pg,sel): return await pg.evaluate("(s)=>{const e=document.querySelector(s);return !!e&&e.offsetParent!==null}",sel)
 async def main():
     async with async_playwright() as p:
@@ -59,6 +66,28 @@ async def main():
         t=await pg.evaluate("(document.getElementById('rtAvisoCocina')||{}).textContent||''")
         chk('Cocina sin comandas activadas: avisa',('no están activadas' in t),t[:70])
         chk('Cocina sin comandas: no deja ver la caja',not await vis(pg,'.tab-btn[data-view="caja"]'))
+        chk('sin errores JS',not e,e); await ctx.close()
+        # ── versión de prueba mínima (cuentas nuevas) ──
+        ctx,pg,e=await dueno(br,'Thu, 19 Nov 2026 10:00:00 GMT')
+        chk('cuenta nueva: se marca versión mínima',await pg.evaluate("featuresActuales.planMinimo===true"))
+        chk('cuenta nueva: ve la pestaña Adicionales',await vis(pg,'#rtTabAdic'))
+        chk('cuenta nueva: no ve Historial',not await vis(pg,'.tab-btn[data-view="historial"]'))
+        chk('cuenta nueva: Facturación en lugar de Reportes','Facturación' in await pg.inner_text('.tab-btn[data-view="reportes"]'))
+        chk('cuenta nueva: gastos y importe libre visibles',await vis(pg,'#gastosSection') and await vis(pg,'#rtImporteLibre'))
+        chk('cuenta nueva: no ve Stock, Empleados ni Cocina',not await vis(pg,'.tab-btn[data-view="stock"]') and not await vis(pg,'.tab-btn[data-view="empleados"]') and not await vis(pg,'.tab-btn[data-view="cocina"]'))
+        await pg.fill('#rtImpLibreInput','2500'); await pg.click('#rtImpLibreBtn')
+        t=await pg.inner_text('#carritoTotal'); chk('importe libre suma al total',t.replace('.','').replace(',','')=='$2500',t)
+        await pg.click('#rtTabAdic'); await pg.wait_for_timeout(300)
+        t=await pg.inner_text('#rtAdicionales'); chk('Adicionales: lista Comandas y Stock con botón de pedir','Comandas de cocina' in t and 'Stock e insumos' in t and 'Pedir este adicional' in t)
+        chk('Adicionales: no dice «básica»','básic' not in t.lower())
+        await pg.click('#rtAdicionales button >> nth=0'); await pg.wait_for_timeout(200)
+        w=await pg.evaluate("window.__wa[0]||''"); chk('Pedir abre WhatsApp de Raven con el adicional',('wa.me/5491136547592' in w) and ('Comandas' in w or 'comandas' in w.lower() or '%C2%AB' in w),w[:90])
+        cfg=await pg.evaluate("JSON.stringify(window.__DB.get('negocios/own1/configuracion/general')||{})"); chk('quedó guardado en la configuración del negocio','planMinimo' in cfg,cfg[:80])
+        chk('sin errores JS',not e,e); await ctx.close()
+        ctx,pg,e=await dueno(br,'Mon, 03 Mar 2025 10:00:00 GMT')
+        chk('cuenta anterior: NO cambia (sin Adicionales, con Historial)',not await vis(pg,'#rtTabAdic') and await vis(pg,'.tab-btn[data-view="historial"]'))
+        chk('cuenta anterior: sin importe libre ni versión mínima',not await vis(pg,'#rtImporteLibre') and not await pg.evaluate("featuresActuales.planMinimo"))
+        chk('cuenta anterior: Reportes se llama igual',(await pg.inner_text('.tab-btn[data-view="reportes"]')).strip()=='Reportes')
         chk('sin errores JS',not e,e); await ctx.close()
         await br.close()
     print(f'{sum(res)}/{len(res)}')
