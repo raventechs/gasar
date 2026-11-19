@@ -6,6 +6,10 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 
 **Fuentes:** tablero maestro (`raventechs-tablero.html`, v2.4.0, ahora con una línea de backup por app), portal (`raventechs.github.io`), código de cada repo y lo que Ruben confirmó de palabra. Las tildes que se marcan tocando el tablero se guardan solo en el celular, así que este archivo es la referencia compartida.
 
+## Actualización del 18/11/2026 (leer primero)
+
+**GastAr — app nueva de gastos del hogar (v1.2.0, repo raventechs/Gastar, raventechs.github.io/Gastar/, Firebase charlar-e5408):** vencimientos por color (2 rojo, 2 naranja, 2 amarillo, 2 verde), gastos fijos mensuales y únicos, pesos y USD, avisos push, instalable. Cada gasto lleva una **importancia obligatoria** (Fijo/esencial, Opcional, Innecesario) y hay un resumen por importancia. **Plan personal** (1 persona) y **Plus grupo familiar** (hasta 5), activable desde el menú admin oculto (5 toques al logo; requiere el documento admins/{uid}). Vista previa sin Firebase: `?demo`. Ingreso con Google y crear hogar probados por Ruben. Faltan: reglas v1.0.2, documento admin, clave VAPID y tarea diaria de avisos (Netlify), probar el Plus. En la app de vendedores (v2.5) figura como «Próximamente»; la decisión de venderla queda para más adelante. Nota: comparte proyecto Firebase con CharlAR (charlar-e5408); las reglas de Firestore publicadas son las de GastAr.
+
 ## Actualización del 17/11/2026 (leer primero)
 
 **GasAR — portal de entrada por rol (hecho y funcionando):**
@@ -115,6 +119,7 @@ Base de trabajo, actualizada el 1/11/2026 (ver la sección de actualización); l
 | PanAR | 🟡 Para vender/probar | ✓✓✓·· | v1.7 | 🎓 Práctica | ✅ auto + manual + restaurar (arreglado 26/10: incluye gastos; falta probar en tu celular) | Publicar firestore.rules (Firebase), probar link de cajero + 🎓 Práctica; después cierre de caja por WhatsApp. ⚠️ Falta la vista Stock (el botón existe pero no hay pantalla). |
 | lavAR | 🟡 Para vender/probar | ✓✓✓·· | v2.4 | 🎓 Práctica | ✅ auto + manual + restaurar (arreglado 26/10: sucursales, gastos, fidelización y empleados; falta probar en tu celular) | Probar 🎓 Modo Práctica y activar una sede para ver la caja. |
 | MiAgenda | 🟢 Con clientes | ✓✓✓✓· | v2.5 | 🎓 Práctica (actividades de ejemplo) | ✅ auto + manual + restaurar (agregado 26/10; falta probar en tu celular) | Agregar el botón "Eliminar usuario". |
+| GastAr | 🟡 Para vender/probar | ✓✓✓·· | v1.2.0 (personal + Plus familiar, importancia por gasto) | Vista previa `?demo` (sin Firebase) | ✅ auto diario + manual + restaurar (falta probar en tu celular) | Pegar reglas v1.0.2, crear admins/{uid}, clave VAPID y avisos diarios; probar el Plus con tu señora. |
 | SaludAR | 🟡 Para vender/probar | ✓✓·✓· | v2.10 | — falta | ✅ auto + manual + restaurar (agregado 26/10; falta probar en tu celular) | Confirmar que llega una sola notificación a la hora correcta con la app instalada. |
 | BarbeAR | 🟡 Para vender/probar | ✓✓·✓· | v2.6 | — falta | ✅ auto + manual + restaurar (arreglado 26/10, probado en simulador; falta probar en tu celular) | Sumarle el 🎓 Modo Práctica como a las demás cajas y probarla con una barbería real. |
 | PeloteAR | 🟡 Para vender/probar | ✓✓✓✓· | — | Demo propio (/demo, sin Firebase) | 🟡 solo al cierre del día, vía servidor Railway; sin manual ni restaurar | Pasarla a offline-first (hoy depende de un servidor en Railway) y sumar el aviso de turnos por WhatsApp. |
